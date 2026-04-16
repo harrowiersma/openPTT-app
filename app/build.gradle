@@ -53,7 +53,7 @@ android {
     }
 
     base {
-        archivesName = "mumla"
+        archivesName = "openptt"
     }
 
     // gradle8: Need to enable this when defaultConfig below contains some custom BuildConfig
@@ -70,11 +70,11 @@ android {
         minSdkVersion 21
         targetSdk 36
 
-        applicationId "se.lublin.mumla"
+        applicationId "ch.harro.openptt"
         // Remember: app_news_items_vX_Y_Z in src/main/res/values/strings.xml
         // and NEWS_ITEMS in src/main/res/java/se/lublin/mumla/app/DialogUtils.java
         //     code:XYYZZbb (bb for build)
-        versionCode 3070300
+        versionCode 1000000
         versionName gitDescribe
 
         buildConfigField "long", "TIMESTAMP", System.currentTimeMillis() + "L"
@@ -87,19 +87,19 @@ android {
     productFlavors {
         goog {
             dimension "release"
-            applicationId "se.lublin.mumla"
+            applicationId "ch.harro.openptt"
         }
         foss {
             dimension "release"
-            applicationId "se.lublin.mumla"
+            applicationId "ch.harro.openptt"
         }
         donation {
             dimension "release"
-            applicationId "se.lublin.mumla.donation"
+            applicationId "ch.harro.openptt.donation"
         }
         beta {
             dimension "release"
-            applicationId "se.lublin.mumla.beta"
+            applicationId "ch.harro.openptt.beta"
         }
     }
 

@@ -17,3 +17,5 @@ local.properties
 
 # Java
 *.class
+.DS_Store
+*.mp3
