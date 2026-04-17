@@ -102,11 +102,17 @@ public class MumlaService extends HumlaService implements
     private boolean mSuppressNotifications;
 
     private TextToSpeech mTTS;
+    /** True once the TTS engine has finished binding and speak() is usable. */
+    private boolean mTTSReady;
     private TextToSpeech.OnInitListener mTTSInitListener = new TextToSpeech.OnInitListener() {
         @Override
         public void onInit(int status) {
-            if(status == TextToSpeech.ERROR)
+            if (status == TextToSpeech.ERROR) {
                 logWarning(getString(R.string.tts_failed));
+                mTTSReady = false;
+            } else {
+                mTTSReady = true;
+            }
         }
     };
 
@@ -160,9 +166,19 @@ public class MumlaService extends HumlaService implements
         @Override
         public void onUserJoinedChannel(IUser user, IChannel newChannel, IChannel oldChannel) {
             try {
-                if (isConnectionEstablished() &&
-                        user.getSession() == getSessionId() &&
-                        mSettings.isNotificationSoundsEnabled() && mSoundPoolReady) {
+                if (!isConnectionEstablished() || user.getSession() != getSessionId()) {
+                    return;
+                }
+                String channelName = newChannel != null ? newChannel.getName() : null;
+                boolean deafened = getSessionUser() != null
+                        && getSessionUser().isSelfDeafened();
+
+                if (mSettings.isTextToSpeechEnabled() && mTTS != null && mTTSReady
+                        && channelName != null && !deafened) {
+                    // QUEUE_FLUSH so rapid knob turns only announce the final channel
+                    mTTS.speak(channelName, TextToSpeech.QUEUE_FLUSH, null, "channel_change");
+                } else if (mSettings.isNotificationSoundsEnabled() && mSoundPoolReady) {
+                    // Fallback beep when TTS is off or not yet initialised
                     mSoundPool.play(mSoundChannelChange, 0.3f, 0.3f, 1, 0, 1f);
                 }
             } catch (IllegalStateException e) {
@@ -407,7 +423,7 @@ public class MumlaService extends HumlaService implements
             e.printStackTrace();
         }
         unregisterObserver(mObserver);
-        if(mTTS != null) mTTS.shutdown();
+        if(mTTS != null) { mTTS.shutdown(); mTTSReady = false; }
         if(mSoundPool != null) mSoundPool.release();
         if(mLocationReporter != null) mLocationReporter.stop();
         mMessageLog = null;
@@ -536,11 +552,13 @@ public class MumlaService extends HumlaService implements
                 mHotCorner.setShown(isConnectionEstablished() && mSettings.isHotCornerEnabled());
                 break;
             case Settings.PREF_USE_TTS:
-                if (mTTS == null && mSettings.isTextToSpeechEnabled())
+                if (mTTS == null && mSettings.isTextToSpeechEnabled()) {
+                    mTTSReady = false;
                     mTTS = new TextToSpeech(this, mTTSInitListener);
-                else if (mTTS != null && !mSettings.isTextToSpeechEnabled()) {
+                } else if (mTTS != null && !mSettings.isTextToSpeechEnabled()) {
                     mTTS.shutdown();
                     mTTS = null;
+                    mTTSReady = false;
                 }
                 break;
             case Settings.PREF_SHORT_TTS_MESSAGES:
