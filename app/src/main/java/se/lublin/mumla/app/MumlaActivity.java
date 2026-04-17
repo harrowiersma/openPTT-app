@@ -439,6 +439,10 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         preferences.unregisterOnSharedPreferenceChangeListener(this);
         mDatabase.close();
+        if (mShiftController != null) {
+            mShiftController.shutdown();
+            mShiftController = null;
+        }
         super.onDestroy();
     }
 
@@ -477,6 +481,16 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
     // Hytera P50 hardware PTT button keycode (from BroadcastKeyManager)
     private static final int KEYCODE_HYTERA_PTT = 142;
 
+    // Lazily-created controller so it only exists when a shift key is actually pressed.
+    private se.lublin.mumla.service.ShiftController mShiftController;
+
+    private se.lublin.mumla.service.ShiftController shiftController() {
+        if (mShiftController == null) {
+            mShiftController = new se.lublin.mumla.service.ShiftController(this, mSettings);
+        }
+        return mShiftController;
+    }
+
     /**
      * Intercept key events BEFORE views consume them.
      * This is critical for PTT: DPAD_DOWN would otherwise be eaten by ListView navigation.
@@ -496,6 +510,18 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
             }
             return true;
         }
+        // Side function key F3: long-press starts/stops a lone-worker shift.
+        // Short press is left unhandled so other features can claim it later.
+        if (keyCode == KeyEvent.KEYCODE_F3 && mService != null && mService.isConnected()) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                shiftController().onKeyDown();
+                return true;
+            } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                String username = currentMumbleUsername();
+                shiftController().onKeyUp(username);
+                return true;
+            }
+        }
         // Channel knob: F5 = previous channel, F6 = next channel
         if (mService != null && mService.isConnected() && event.getAction() == KeyEvent.ACTION_DOWN) {
             if (keyCode == KeyEvent.KEYCODE_F5) {
@@ -507,6 +533,25 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
             }
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    /**
+     * The Mumble username of the currently connected session, used as the
+     * shift-API subject. Pulled from the live connection so we don't rely on
+     * a stale preference.
+     */
+    private String currentMumbleUsername() {
+        try {
+            if (mService != null && mService.isConnected()) {
+                se.lublin.humla.IHumlaSession session = mService.HumlaSession();
+                if (session != null && session.getSessionUser() != null) {
+                    return session.getSessionUser().getName();
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.w("MumlaActivity", "currentMumbleUsername failed", e);
+        }
+        return null;
     }
 
     @Override

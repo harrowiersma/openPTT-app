@@ -252,4 +252,11 @@
     <string name="gpsTrackingSum">Send position + battery while connected</string>
     <string name="traccarUrl">Traccar server URL</string>
     <string name="traccarUrlSum">OsmAnd endpoint, e.g. http://voice.harro.ch:5055</string>
+    <string name="adminCategory">Admin API (shift control)</string>
+    <string name="adminUrl">Admin server URL</string>
+    <string name="adminUrlSum">HTTPS base URL of the openPTT admin, e.g. https://ptt.harro.ch. Leave blank to disable long-press shift control.</string>
+    <string name="shift_started_tts">Shift started. Ends at %s.</string>
+    <string name="shift_stopping_tts">Ending shift. Long press again to cancel.</string>
+    <string name="shift_stopped_tts">Shift ended.</string>
+    <string name="shift_start_failed_tts">Could not start shift. Check admin URL.</string>
 </resources>

@@ -116,4 +116,16 @@
             android:defaultValue=""
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="@string/adminCategory"
+        app:iconSpaceReserved="false">
+
+        <EditTextPreference
+            android:key="admin_url"
+            android:title="@string/adminUrl"
+            android:summary="@string/adminUrlSum"
+            android:defaultValue=""
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
 </PreferenceScreen>

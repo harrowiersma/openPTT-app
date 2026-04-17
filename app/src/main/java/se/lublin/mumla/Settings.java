@@ -153,6 +153,13 @@ public class Settings {
     public static final String PREF_TRACCAR_URL = "traccar_url";
     public static final String DEFAULT_TRACCAR_URL = "";
 
+    // HTTPS base URL of the openPTT admin API (e.g. https://ptt.harro.ch).
+    // When set, long-press of the configured shift key starts/stops a
+    // lone-worker shift via /api/loneworker/shift/{start,stop}. Empty
+    // disables the feature.
+    public static final String PREF_ADMIN_URL = "admin_url";
+    public static final String DEFAULT_ADMIN_URL = "";
+
     public static final String PREF_AUTO_CONNECT = "auto_connect";
     public static final boolean DEFAULT_AUTO_CONNECT = true;
 
@@ -387,6 +394,10 @@ public class Settings {
 
     public String getTraccarUrl() {
         return preferences.getString(PREF_TRACCAR_URL, DEFAULT_TRACCAR_URL);
+    }
+
+    public String getAdminUrl() {
+        return preferences.getString(PREF_ADMIN_URL, DEFAULT_ADMIN_URL);
     }
 
     public boolean isAutoConnectEnabled() {
