@@ -332,6 +332,10 @@ public class MumlaService extends HumlaService implements
 
     public static final String ACTION_PTT_DOWN = "se.lublin.mumla.PTT_DOWN";
     public static final String ACTION_PTT_UP = "se.lublin.mumla.PTT_UP";
+    public static final String ACTION_SHIFT_KEY_DOWN = "se.lublin.mumla.SHIFT_KEY_DOWN";
+    public static final String ACTION_SHIFT_KEY_UP = "se.lublin.mumla.SHIFT_KEY_UP";
+
+    private ShiftController mShiftController;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -345,9 +349,41 @@ public class MumlaService extends HumlaService implements
                 Log.i(TAG, "PTT_UP received via intent");
                 onTalkKeyUp();
                 return START_NOT_STICKY;
+            } else if (ACTION_SHIFT_KEY_DOWN.equals(action)) {
+                Log.i(TAG, "SHIFT_KEY_DOWN received via intent");
+                shiftController().onKeyDown();
+                return START_NOT_STICKY;
+            } else if (ACTION_SHIFT_KEY_UP.equals(action)) {
+                Log.i(TAG, "SHIFT_KEY_UP received via intent");
+                shiftController().onKeyUp(currentMumbleUsername());
+                return START_NOT_STICKY;
             }
         }
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    private ShiftController shiftController() {
+        if (mShiftController == null) {
+            mShiftController = new ShiftController(this, mSettings);
+        }
+        return mShiftController;
+    }
+
+    /** Force ShiftController + its TTS engine to initialize now so the first
+     * triple-tap isn't silent. Called from onCreate. */
+    private void prewarmShiftController() {
+        shiftController();
+    }
+
+    private String currentMumbleUsername() {
+        try {
+            if (isConnected() && getSessionUser() != null) {
+                return getSessionUser().getName();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "currentMumbleUsername failed", e);
+        }
+        return null;
     }
 
     @Override
@@ -392,6 +428,11 @@ public class MumlaService extends HumlaService implements
         // GPS + battery reporter (started in onConnectionSynchronized, stopped on disconnect)
         mLocationReporter = new LocationReporter(this, mSettings);
 
+        // Prewarm the shift controller so its TTS engine is ready by the
+        // time the user triple-taps. Without this, the first toggle is
+        // silent (TTS takes ~1-2s to initialize on a cold start).
+        prewarmShiftController();
+
         // Set up TTS
         if(mSettings.isTextToSpeechEnabled())
             mTTS = new TextToSpeech(this, mTTSInitListener);
@@ -426,6 +467,7 @@ public class MumlaService extends HumlaService implements
         if(mTTS != null) { mTTS.shutdown(); mTTSReady = false; }
         if(mSoundPool != null) mSoundPool.release();
         if(mLocationReporter != null) mLocationReporter.stop();
+        if(mShiftController != null) { mShiftController.shutdown(); mShiftController = null; }
         mMessageLog = null;
         mMessageNotification.dismiss();
         super.onDestroy();
@@ -725,6 +767,14 @@ public class MumlaService extends HumlaService implements
      * Called when a user presses a talk key down (i.e. when they want to talk).
      * Accounts for talk logic if toggle PTT is on.
      */
+    // Triple-tap PTT detection for lone-worker shift toggle.
+    // The P50 ROM owns the F3 long-press (can't be intercepted), so we
+    // layer a tap-timing gesture on top of the PTT button: three presses
+    // within TRIPLE_TAP_WINDOW_MS flips shift state.
+    private static final long TRIPLE_TAP_WINDOW_MS = 1200;
+    private final long[] mPttPressTimes = new long[3];
+    private int mPttPressIdx = 0;
+
     @Override
     public void onTalkKeyDown() {
         if(isConnectionEstablished()
@@ -732,6 +782,30 @@ public class MumlaService extends HumlaService implements
             if (!mSettings.isPushToTalkToggle() && !isTalking()) {
                 setTalkingState(true); // Start talking
             }
+        }
+        // Record press time and check for triple-tap regardless of input
+        // method — the user has signalled a shift-toggle intent.
+        detectTripleTap();
+    }
+
+    private void detectTripleTap() {
+        long now = android.os.SystemClock.uptimeMillis();
+        mPttPressTimes[mPttPressIdx] = now;
+        mPttPressIdx = (mPttPressIdx + 1) % mPttPressTimes.length;
+
+        // All three slots must be populated AND the oldest must be within
+        // the window. If so, fire a shift toggle and reset the ring so
+        // the fourth tap doesn't cascade.
+        long oldest = now;
+        for (long t : mPttPressTimes) {
+            if (t == 0) return; // still priming
+            if (t < oldest) oldest = t;
+        }
+        if (now - oldest <= TRIPLE_TAP_WINDOW_MS) {
+            Log.i(TAG, "triple-tap PTT detected; toggling shift");
+            java.util.Arrays.fill(mPttPressTimes, 0);
+            mPttPressIdx = 0;
+            shiftController().toggle(currentMumbleUsername());
         }
     }
 

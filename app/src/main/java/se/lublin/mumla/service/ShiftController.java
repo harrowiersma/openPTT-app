@@ -93,11 +93,27 @@ public class ShiftController {
 
         long held = SystemClock.uptimeMillis() - downTime;
         if (held < LONG_PRESS_MS) return;
-        if (username == null || username.isEmpty()) return;
+        advanceState(username);
+    }
+
+    /**
+     * Trigger a shift toggle directly, without any press-timing. Used by
+     * alternative gestures (e.g. triple-tap PTT) where timing logic lives
+     * elsewhere.
+     */
+    public void toggle(String username) {
+        advanceState(username);
+    }
+
+    private void advanceState(String username) {
+        if (username == null || username.isEmpty()) {
+            Log.w(TAG, "no username available; shift toggle ignored");
+            return;
+        }
 
         String adminUrl = mSettings.getAdminUrl();
         if (adminUrl == null || adminUrl.isEmpty()) {
-            Log.w(TAG, "admin URL not configured; long-press ignored");
+            Log.w(TAG, "admin URL not configured; shift toggle ignored");
             return;
         }
 
