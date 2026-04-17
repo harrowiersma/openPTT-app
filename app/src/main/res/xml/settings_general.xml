@@ -83,4 +83,37 @@
         android:summary="@string/pref_start_upIn_pinned_mode_sum"
         android:title="@string/pref_start_up_in_pinned_mode"
         app:iconSpaceReserved="false" />
+
+    <EditTextPreference
+        android:key="default_channel"
+        android:title="@string/defaultChannel"
+        android:summary="@string/defaultChannelSum"
+        android:defaultValue="Internal"
+        app:iconSpaceReserved="false" />
+
+    <CheckBoxPreference
+        android:key="auto_connect"
+        android:title="@string/autoConnect"
+        android:summary="@string/autoConnectSum"
+        android:defaultValue="true"
+        app:iconSpaceReserved="false" />
+
+    <PreferenceCategory
+        android:title="@string/gpsCategory"
+        app:iconSpaceReserved="false">
+
+        <CheckBoxPreference
+            android:key="gps_tracking"
+            android:title="@string/gpsTracking"
+            android:summary="@string/gpsTrackingSum"
+            android:defaultValue="true"
+            app:iconSpaceReserved="false" />
+
+        <EditTextPreference
+            android:key="traccar_url"
+            android:title="@string/traccarUrl"
+            android:summary="@string/traccarUrlSum"
+            android:defaultValue=""
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
 </PreferenceScreen>

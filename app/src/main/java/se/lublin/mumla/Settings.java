@@ -97,7 +97,7 @@ public class Settings {
     public static final String PREF_LANGUAGE = "language";
 
     public static final String PREF_PTT_BUTTON_HEIGHT = "pttButtonHeight";
-    public static final int DEFAULT_PTT_BUTTON_HEIGHT = 150;
+    public static final int DEFAULT_PTT_BUTTON_HEIGHT = 60;
 
     /**
      * The DB identifier for the default certificate.
@@ -140,6 +140,21 @@ public class Settings {
 
     public static final String PREF_PTT_SOUND = "ptt_sound";
     public static final boolean DEFAULT_PTT_SOUND = false;
+
+    public static final String PREF_NOTIFICATION_SOUNDS = "notification_sounds";
+    public static final boolean DEFAULT_NOTIFICATION_SOUNDS = true;
+
+    public static final String PREF_DEFAULT_CHANNEL = "default_channel";
+    public static final String DEFAULT_DEFAULT_CHANNEL = "Internal";
+
+    public static final String PREF_GPS_TRACKING = "gps_tracking";
+    public static final boolean DEFAULT_GPS_TRACKING = true;
+
+    public static final String PREF_TRACCAR_URL = "traccar_url";
+    public static final String DEFAULT_TRACCAR_URL = "";
+
+    public static final String PREF_AUTO_CONNECT = "auto_connect";
+    public static final boolean DEFAULT_AUTO_CONNECT = true;
 
     public static final String PREF_PREPROCESSOR_ENABLED = "preprocessor_enabled";
     public static final boolean DEFAULT_PREPROCESSOR_ENABLED = true;
@@ -356,6 +371,26 @@ public class Settings {
 
     public boolean isPttSoundEnabled() {
         return preferences.getBoolean(PREF_PTT_SOUND, DEFAULT_PTT_SOUND);
+    }
+
+    public boolean isNotificationSoundsEnabled() {
+        return preferences.getBoolean(PREF_NOTIFICATION_SOUNDS, DEFAULT_NOTIFICATION_SOUNDS);
+    }
+
+    public String getDefaultChannel() {
+        return preferences.getString(PREF_DEFAULT_CHANNEL, DEFAULT_DEFAULT_CHANNEL);
+    }
+
+    public boolean isGpsTrackingEnabled() {
+        return preferences.getBoolean(PREF_GPS_TRACKING, DEFAULT_GPS_TRACKING);
+    }
+
+    public String getTraccarUrl() {
+        return preferences.getString(PREF_TRACCAR_URL, DEFAULT_TRACCAR_URL);
+    }
+
+    public boolean isAutoConnectEnabled() {
+        return preferences.getBoolean(PREF_AUTO_CONNECT, DEFAULT_AUTO_CONNECT);
     }
 
     public boolean isPreprocessorEnabled() {

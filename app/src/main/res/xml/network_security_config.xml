@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Default: cleartext traffic is blocked (Android 9+ behavior) -->
+    <base-config cleartextTrafficPermitted="false" />
+
+    <!-- Allow cleartext HTTP only for the Traccar OsmAnd endpoint on the PTT
+         server. Traccar's OsmAnd protocol listens on port 5055 over plain HTTP.
+         Voice traffic to the same host uses TLS (port 443 via Nginx SNI). -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">voice.harro.ch</domain>
+    </domain-config>
+</network-security-config>

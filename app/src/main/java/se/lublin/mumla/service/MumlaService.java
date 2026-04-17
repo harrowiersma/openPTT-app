@@ -21,7 +21,9 @@ import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.media.AudioAttributes;
 import android.media.AudioManager;
+import android.media.SoundPool;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
@@ -45,6 +47,7 @@ import java.util.List;
 import se.lublin.humla.Constants;
 import se.lublin.humla.HumlaService;
 import se.lublin.humla.exception.AudioException;
+import se.lublin.humla.model.IChannel;
 import se.lublin.humla.model.IMessage;
 import se.lublin.humla.model.IUser;
 import se.lublin.humla.model.Message;
@@ -77,12 +80,19 @@ public class MumlaService extends HumlaService implements
     private MumlaReconnectNotification mReconnectNotification;
     /** Channel view overlay. */
     private MumlaOverlay mChannelOverlay;
+    /** Reports GPS + battery to Traccar while connected. */
+    private LocationReporter mLocationReporter;
     /** Proximity lock for handset mode. */
     private PowerManager.WakeLock mProximityLock;
     /** Play sound when push to talk key is pressed */
     private boolean mPTTSoundEnabled;
     /** Try to shorten spoken messages when using TTS */
     private boolean mShortTtsMessagesEnabled;
+    /** SoundPool for custom notification sounds */
+    private SoundPool mSoundPool;
+    private int mSoundConnect;
+    private int mSoundChannelChange;
+    private boolean mSoundPoolReady;
     /**
      * True if an error causing disconnection has been dismissed by the user.
      * This should serve as a hint not to bother the user.
@@ -141,6 +151,22 @@ public class MumlaService extends HumlaService implements
                 mNotification.setCustomContentText(getString(R.string.connected) + tor);
                 mNotification.setActionsShown(true);
                 mNotification.show();
+            }
+            if (mSettings.isNotificationSoundsEnabled() && mSoundPoolReady) {
+                mSoundPool.play(mSoundConnect, 0.3f, 0.3f, 1, 0, 1f);
+            }
+        }
+
+        @Override
+        public void onUserJoinedChannel(IUser user, IChannel newChannel, IChannel oldChannel) {
+            try {
+                if (isConnectionEstablished() &&
+                        user.getSession() == getSessionId() &&
+                        mSettings.isNotificationSoundsEnabled() && mSoundPoolReady) {
+                    mSoundPool.play(mSoundChannelChange, 0.3f, 0.3f, 1, 0, 1f);
+                }
+            } catch (IllegalStateException e) {
+                Log.d(TAG, "exception in onUserJoinedChannel: " + e);
             }
         }
 
@@ -279,14 +305,34 @@ public class MumlaService extends HumlaService implements
 
             if (isConnectionEstablished() &&
                     user.getSession() == selfSession &&
-                    getTransmitMode() == Constants.TRANSMIT_PUSH_TO_TALK &&
-                    user.getTalkState() == TalkState.TALKING &&
-                    mPTTSoundEnabled) {
-                AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-                audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, -1);
+                    getTransmitMode() == Constants.TRANSMIT_PUSH_TO_TALK) {
+                if (user.getTalkState() == TalkState.TALKING && mPTTSoundEnabled) {
+                    AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+                    audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, -1);
+                }
             }
         }
     };
+
+    public static final String ACTION_PTT_DOWN = "se.lublin.mumla.PTT_DOWN";
+    public static final String ACTION_PTT_UP = "se.lublin.mumla.PTT_UP";
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null) {
+            String action = intent.getAction();
+            if (ACTION_PTT_DOWN.equals(action)) {
+                Log.i(TAG, "PTT_DOWN received via intent");
+                onTalkKeyDown();
+                return START_NOT_STICKY;
+            } else if (ACTION_PTT_UP.equals(action)) {
+                Log.i(TAG, "PTT_UP received via intent");
+                onTalkKeyUp();
+                return START_NOT_STICKY;
+            }
+        }
+        return super.onStartCommand(intent, flags, startId);
+    }
 
     @Override
     public void onCreate() {
@@ -304,12 +350,31 @@ public class MumlaService extends HumlaService implements
         // XML <application> theme does NOT do this!
         setTheme(R.style.Theme_Mumla);
 
+        // Initialize SoundPool for custom sounds
+        AudioAttributes audioAttrs = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build();
+        mSoundPool = new SoundPool.Builder()
+                .setMaxStreams(2)
+                .setAudioAttributes(audioAttrs)
+                .build();
+        mSoundConnect = mSoundPool.load(this, R.raw.connect, 1);
+        mSoundChannelChange = mSoundPool.load(this, R.raw.channel_change, 1);
+        mSoundPool.setOnLoadCompleteListener((soundPool, sampleId, status) -> {
+            // Consider the pool ready once the last-loaded sample (channel_change) is in
+            if (sampleId == mSoundChannelChange) mSoundPoolReady = true;
+        });
+
         mMessageLog = new ArrayList<>();
         mMessageNotification = new MumlaMessageNotification(MumlaService.this);
 
         // Instantiate overlay view
         mChannelOverlay = new MumlaOverlay(this);
         mHotCorner = new MumlaHotCorner(this, mSettings.getHotCornerGravity(), mHotCornerListener);
+
+        // GPS + battery reporter (started in onConnectionSynchronized, stopped on disconnect)
+        mLocationReporter = new LocationReporter(this, mSettings);
 
         // Set up TTS
         if(mSettings.isTextToSpeechEnabled())
@@ -341,9 +406,10 @@ public class MumlaService extends HumlaService implements
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
         }
-
         unregisterObserver(mObserver);
         if(mTTS != null) mTTS.shutdown();
+        if(mSoundPool != null) mSoundPool.release();
+        if(mLocationReporter != null) mLocationReporter.stop();
         mMessageLog = null;
         mMessageNotification.dismiss();
         super.onDestroy();
@@ -379,12 +445,41 @@ public class MumlaService extends HumlaService implements
             registerReceiver(mTalkReceiver, new IntentFilter(TalkBroadcastReceiver.BROADCAST_TALK));
         }
 
+        // Auto-join default channel if configured
+        String defaultChannel = mSettings.getDefaultChannel();
+        if (defaultChannel != null && !defaultChannel.isEmpty()) {
+            try {
+                IChannel root = getRootChannel();
+                if (root != null) {
+                    List<IChannel> channels = se.lublin.mumla.util.ModelUtils.getChannelList(root);
+                    for (IChannel ch : channels) {
+                        if (defaultChannel.equals(ch.getName())) {
+                            joinChannel(ch.getId());
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.d(TAG, "auto-join default channel failed: " + e);
+            }
+        }
+
         if (mSettings.isHotCornerEnabled()) {
             mHotCorner.setShown(true);
         }
         // Configure proximity sensor
         if (mSettings.isHandsetMode()) {
             setProximitySensorOn(true);
+        }
+
+        // Start GPS + battery reporting to Traccar
+        if (mLocationReporter != null) {
+            try {
+                String username = getTargetServer() != null ? getTargetServer().getUsername() : null;
+                mLocationReporter.start(username);
+            } catch (Exception e) {
+                Log.d(TAG, "failed to start LocationReporter: " + e);
+            }
         }
     }
 
@@ -394,6 +489,11 @@ public class MumlaService extends HumlaService implements
         try {
             unregisterReceiver(mTalkReceiver);
         } catch (IllegalArgumentException iae) {
+        }
+
+        // Stop GPS reporting
+        if (mLocationReporter != null) {
+            mLocationReporter.stop();
         }
 
         // Remove overlay if present.
@@ -659,6 +759,43 @@ public class MumlaService extends HumlaService implements
     @Override
     public void setSuppressNotifications(boolean suppressNotifications) {
         mSuppressNotifications = suppressNotifications;
+    }
+
+    @Override
+    public void switchChannel(int direction) {
+        if (!isConnectionEstablished()) return;
+        try {
+            IChannel root = getRootChannel();
+            if (root == null) return;
+            // Only cycle through direct children of Root — matches the visible channel list order.
+            // Subchannels are already sorted by position then name (Channel.compareTo).
+            List<? extends IChannel> channels = root.getSubchannels();
+            if (channels.isEmpty()) return;
+
+            IChannel current = getSessionChannel();
+            int currentIndex = -1;
+            for (int i = 0; i < channels.size(); i++) {
+                if (channels.get(i).getId() == current.getId()) {
+                    currentIndex = i;
+                    break;
+                }
+            }
+
+            int nextIndex;
+            if (currentIndex == -1) {
+                // Current channel is a subchannel or Root — jump to first main channel
+                nextIndex = 0;
+            } else {
+                nextIndex = (currentIndex + direction + channels.size()) % channels.size();
+            }
+
+            IChannel target = channels.get(nextIndex);
+            joinChannel(target.getId());
+            Toast.makeText(this, getString(R.string.channel_switched, target.getName()),
+                    Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Log.e(TAG, "switchChannel failed: " + e);
+        }
     }
 
     public static class MumlaBinder extends Binder {

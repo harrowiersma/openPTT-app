@@ -18,6 +18,7 @@
 package se.lublin.mumla.channel;
 
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.content.res.TypedArray;
 import android.os.Bundle;
 import android.util.Log;
@@ -153,6 +154,12 @@ public class ChannelFragment extends HumlaServiceFragment implements SharedPrefe
             mTabStrip.setTabIndicatorColor(titleStripColor);
             mTabStrip.setBackgroundColor(titleStripBackground);
             mTabStrip.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+
+            // Hide tab strip on small screens (e.g. 240x320 P50) to save vertical space
+            int screenSize = getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK;
+            if (screenSize == Configuration.SCREENLAYOUT_SIZE_SMALL) {
+                mTabStrip.setVisibility(View.GONE);
+            }
         }
 
         mTalkView = view.findViewById(R.id.pushtotalk_view);

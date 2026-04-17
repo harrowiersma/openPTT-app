@@ -431,6 +431,14 @@ public class ChannelListAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
      */
     private void constructNodes(Node parent, IChannel channel, int depth,
                                 List<Node> nodes) {
+        // Hide Root channel (id=0) — show its children directly at depth 0
+        if (channel.getId() == 0) {
+            for (IChannel subc : channel.getSubchannels()) {
+                constructNodes(parent, subc, depth, nodes);
+            }
+            return;
+        }
+
         Node channelNode = new Node(parent, depth, channel);
         nodes.add(channelNode);
 

@@ -138,7 +138,8 @@ public class MumlaConnectionNotification {
             channelId = "connected_channel";
             String channelName = mService.getString(R.string.connected);
             NotificationChannel chan = new NotificationChannel(channelId, channelName,
-                    NotificationManager.IMPORTANCE_DEFAULT);
+                    NotificationManager.IMPORTANCE_LOW);
+            chan.setSound(null, null);
             NotificationManager manager = mService.getSystemService(NotificationManager.class);
             manager.createNotificationChannel(chan);
         }

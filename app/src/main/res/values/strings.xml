@@ -238,4 +238,18 @@
 
     <!-- Used only by flavor "foss" -->
     <string name="donate_foss">Donate</string>
+
+    <!-- openPTT TRX P50 -->
+    <string name="notificationSounds">Notification sounds</string>
+    <string name="notificationSoundsSum">Play sounds on connect and channel change</string>
+    <string name="channel_switched">Channel: %s</string>
+    <string name="defaultChannel">Default channel</string>
+    <string name="defaultChannelSum">Auto-join this channel on connect</string>
+    <string name="autoConnect">Auto-connect on start</string>
+    <string name="autoConnectSum">Connect to the first favourite automatically when the app launches or the device boots</string>
+    <string name="gpsCategory">GPS tracking</string>
+    <string name="gpsTracking">Report GPS to Traccar</string>
+    <string name="gpsTrackingSum">Send position + battery while connected</string>
+    <string name="traccarUrl">Traccar server URL</string>
+    <string name="traccarUrlSum">OsmAnd endpoint, e.g. http://voice.harro.ch:5055</string>
 </resources>

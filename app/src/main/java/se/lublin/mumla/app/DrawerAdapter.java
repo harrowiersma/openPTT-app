@@ -188,7 +188,11 @@ public class DrawerAdapter extends ArrayAdapter<DrawerAdapter.DrawerRow> {
                     return true;
             }
         }
-        return false; // Default false for headers
+        // Make the connected-server header clickable to navigate back to channels
+        if (viewType == HEADER_TYPE && getItemId(position) == HEADER_CONNECTED_SERVER) {
+            return mProvider.isConnected();
+        }
+        return false; // Default false for other headers
     }
 
     @Override

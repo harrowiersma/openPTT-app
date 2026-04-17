@@ -4,8 +4,8 @@
         <item name="colorOnPrimary">@color/md_theme_dark_onPrimary</item>
         <item name="pttPressed">@color/md_theme_dark_primary_lighter</item>
         <!-- Fix text color in drawer -->
-        <item name="android:textColorPrimaryInverse">#dddddd</item>
-        <item name="android:textColorSecondaryInverse">#dddddd</item>
+        <item name="android:textColorPrimaryInverse">#f0f0f0</item>
+        <item name="android:textColorSecondaryInverse">#e0e0e0</item>
 
         <!-- Dark primary color is too dark for dialog buttons (on dark background). We tweak old
              style, material style, and old preference dialogs to use a higher-contrast primary -->
@@ -29,6 +29,6 @@
     <style name="TweakedDialogPreference" parent="Preference.DialogPreference.Material" />
 
     <style name="Theme.Mumla.Dark.CardView" parent="CardView">
-        <item name="cardBackgroundColor">#202020</item>
+        <item name="cardBackgroundColor">#2d2d2d</item>
     </style>
 </resources>

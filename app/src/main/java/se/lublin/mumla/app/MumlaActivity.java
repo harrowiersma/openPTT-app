@@ -130,8 +130,11 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
 
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
     private static final int PERMISSIONS_REQUEST_POST_NOTIFICATIONS = 2;
+    private static final int PERMISSIONS_REQUEST_LOCATION = 3;
     private Server mServerPendingPerm = null;
     private boolean mPermPostNotificationsAsked = false;
+    private boolean mPermLocationAsked = false;
+    private boolean mAutoConnectAttempted = false;
 
     private AlertDialog mConnectingDialog;
     private AlertDialog mErrorDialog;
@@ -303,20 +306,13 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
 
         View headerView = getLayoutInflater().inflate(R.layout.list_drawer_headerlogo, mDrawerList, false);
         mDrawerList.addHeaderView(headerView, null, false);
-
-        if (BuildConfig.FLAVOR.equals("foss")) {
-            final int layoutResId = getResources().getIdentifier("list_drawer_headerdonate_foss", "xml", getPackageName());
-            final int stringResId = getResources().getIdentifier("donate_link_foss", "string", getPackageName());
-            if ((layoutResId != 0) && (stringResId != 0)) {
-                View footerView = getLayoutInflater().inflate(layoutResId, mDrawerList, false);
-                mDrawerList.addHeaderView(footerView, null, true);
-                footerView.setOnClickListener(v -> {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(getString(stringResId)));
-                    startActivity(intent);
-                    mDrawerLayout.closeDrawers();
-                });
+        // Tap logo/header to navigate back to channel list when connected
+        headerView.setOnClickListener(v -> {
+            if (mService != null && mService.isConnected()) {
+                mDrawerLayout.closeDrawers();
+                loadDrawerFragment(DrawerAdapter.ITEM_SERVER);
             }
-        }
+        });
 
         mDrawerList.setOnItemClickListener(this);
         mDrawerAdapter = new DrawerAdapter(this, this);
@@ -385,6 +381,24 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
                 showFirstRunGuide();
             } else {
                 new StartupAction().execute(this);
+            }
+
+            // Auto-connect to the first favourite if enabled and not arriving via a mumble:// URL
+            boolean isMumbleUrl = getIntent() != null
+                    && Intent.ACTION_VIEW.equals(getIntent().getAction());
+            if (!isMumbleUrl
+                    && !mAutoConnectAttempted
+                    && mSettings.isAutoConnectEnabled()) {
+                List<Server> servers = mDatabase.getServers();
+                if (servers != null && !servers.isEmpty()) {
+                    mAutoConnectAttempted = true;
+                    final Server firstServer = servers.get(0);
+                    Log.i(TAG, "Auto-connect: '" + firstServer.getName() + "' ("
+                            + firstServer.getHost() + ":" + firstServer.getPort() + ")");
+                    // Defer slightly so the Activity is fully set up (permission prompts etc.)
+                    new android.os.Handler(getMainLooper()).postDelayed(
+                            () -> connectToServer(firstServer), 500);
+                }
             }
         }
     }
@@ -460,27 +474,59 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
         mDrawerToggle.onConfigurationChanged(newConfig);
     }
 
+    // Hytera P50 hardware PTT button keycode (from BroadcastKeyManager)
+    private static final int KEYCODE_HYTERA_PTT = 142;
+
+    /**
+     * Intercept key events BEFORE views consume them.
+     * This is critical for PTT: DPAD_DOWN would otherwise be eaten by ListView navigation.
+     */
     @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (mService != null && keyCode == mSettings.getPushToTalkKey()) {
-            mService.onTalkKeyDown();
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        // PTT key (configured key or Hytera hardware PTT)
+        if (mService != null &&
+                (keyCode == mSettings.getPushToTalkKey() || keyCode == KEYCODE_HYTERA_PTT)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                mService.onTalkKeyDown();
+                return true;
+            } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                mService.onTalkKeyUp();
+                return true;
+            }
             return true;
         }
+        // Channel knob: F5 = previous channel, F6 = next channel
+        if (mService != null && mService.isConnected() && event.getAction() == KeyEvent.ACTION_DOWN) {
+            if (keyCode == KeyEvent.KEYCODE_F5) {
+                mService.switchChannel(-1);
+                return true;
+            } else if (keyCode == KeyEvent.KEYCODE_F6) {
+                mService.switchChannel(1);
+                return true;
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
         return super.onKeyDown(keyCode, event);
     }
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
-        if (mService != null && keyCode == mSettings.getPushToTalkKey()) {
-            mService.onTalkKeyUp();
-            return true;
-        }
         return super.onKeyUp(keyCode, event);
     }
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
         mDrawerLayout.closeDrawers();
+        // Clicking the connected server header navigates to channels
+        if (id == DrawerAdapter.HEADER_CONNECTED_SERVER && mService != null && mService.isConnected()) {
+            loadDrawerFragment(DrawerAdapter.ITEM_SERVER);
+            return;
+        }
         loadDrawerFragment((int) id);
     }
 
@@ -581,6 +627,22 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
             }
         }
 
+        // Ask for location permission (for Traccar GPS reporting) if tracking is enabled
+        if (!mPermLocationAsked && mSettings.isGpsTrackingEnabled()) {
+            if (ContextCompat.checkSelfPermission(MumlaActivity.this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED
+                    && ContextCompat.checkSelfPermission(MumlaActivity.this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(MumlaActivity.this,
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION},
+                        PERMISSIONS_REQUEST_LOCATION);
+                return;
+            }
+        }
+
         if (mServerPendingPerm == null) {
             Log.w(TAG, "No pending server after getting permissions");
             return;
@@ -661,6 +723,11 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
                                 getString(R.string.grant_perm_notifications), Toast.LENGTH_LONG).show();
                     }
                 }
+                connectToServerWithPerm();
+                break;
+            case PERMISSIONS_REQUEST_LOCATION:
+                // Continue regardless — GPS is optional; PTT still works without it.
+                mPermLocationAsked = true;
                 connectToServerWithPerm();
                 break;
         }
