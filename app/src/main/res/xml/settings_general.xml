@@ -127,5 +127,12 @@
             android:summary="@string/adminUrlSum"
             android:defaultValue=""
             app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            android:key="lone_worker_enabled"
+            android:title="@string/loneWorkerEnabled"
+            android:summary="@string/loneWorkerEnabledSum"
+            android:defaultValue="false"
+            app:iconSpaceReserved="false" />
     </PreferenceCategory>
 </PreferenceScreen>

@@ -160,6 +160,12 @@ public class Settings {
     public static final String PREF_ADMIN_URL = "admin_url";
     public static final String DEFAULT_ADMIN_URL = "";
 
+    // Lone-worker mode: master switch for the triple-tap-PTT shift toggle
+    // gesture. When disabled, fast PTT taps never start/stop a shift —
+    // useful for phone operators and dispatchers who aren't on shifts.
+    public static final String PREF_LONE_WORKER_ENABLED = "lone_worker_enabled";
+    public static final boolean DEFAULT_LONE_WORKER_ENABLED = false;
+
     public static final String PREF_AUTO_CONNECT = "auto_connect";
     public static final boolean DEFAULT_AUTO_CONNECT = true;
 
@@ -398,6 +404,10 @@ public class Settings {
 
     public String getAdminUrl() {
         return preferences.getString(PREF_ADMIN_URL, DEFAULT_ADMIN_URL);
+    }
+
+    public boolean isLoneWorkerEnabled() {
+        return preferences.getBoolean(PREF_LONE_WORKER_ENABLED, DEFAULT_LONE_WORKER_ENABLED);
     }
 
     public boolean isAutoConnectEnabled() {

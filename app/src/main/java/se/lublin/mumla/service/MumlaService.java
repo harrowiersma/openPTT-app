@@ -386,6 +386,17 @@ public class MumlaService extends HumlaService implements
         return null;
     }
 
+    private String currentMumbleChannelName() {
+        try {
+            if (isConnected() && getSessionChannel() != null) {
+                return getSessionChannel().getName();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "currentMumbleChannelName failed", e);
+        }
+        return null;
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -789,6 +800,20 @@ public class MumlaService extends HumlaService implements
     }
 
     private void detectTripleTap() {
+        // Gate 1: Lone-worker mode must be explicitly enabled. Users who
+        // never run shifts (e.g. dispatchers, phone operators) should
+        // never accidentally start one with fast PTT taps.
+        if (!mSettings.isLoneWorkerEnabled()) {
+            return;
+        }
+        // Gate 2: Never in the Phone channel. Triple-tap during a live
+        // phone call is reserved for call-control gestures in the
+        // sip-bridge, and starting a shift in the middle of a call is
+        // never what the user means.
+        if ("Phone".equals(currentMumbleChannelName())) {
+            return;
+        }
+
         long now = android.os.SystemClock.uptimeMillis();
         mPttPressTimes[mPttPressIdx] = now;
         mPttPressIdx = (mPttPressIdx + 1) % mPttPressTimes.length;
