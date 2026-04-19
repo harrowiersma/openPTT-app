@@ -33,4 +33,10 @@ public interface IMumlaService extends IHumlaService {
      * @param direction +1 for next (F6/clockwise), -1 for previous (F5/counter-clockwise)
      */
     void switchChannel(int direction);
+
+    String currentChannelName();
+
+    void phoneMuteToggle();
+
+    void phoneHangup();
 }

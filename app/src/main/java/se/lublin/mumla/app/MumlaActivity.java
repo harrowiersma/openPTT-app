@@ -511,6 +511,18 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
                 mService.switchChannel(1);
                 return true;
             }
+            // Phone-call controls. Only fire while the user is in the Phone
+            // channel, otherwise these keys retain their default OS meaning.
+            if (keyCode == KeyEvent.KEYCODE_CALL || keyCode == KeyEvent.KEYCODE_MENU) {
+                if ("Phone".equals(mService.currentChannelName())) {
+                    if (keyCode == KeyEvent.KEYCODE_CALL) {
+                        mService.phoneMuteToggle();
+                    } else {
+                        mService.phoneHangup();
+                    }
+                    return true;
+                }
+            }
         }
         return super.dispatchKeyEvent(event);
     }

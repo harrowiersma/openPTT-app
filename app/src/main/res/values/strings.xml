@@ -257,6 +257,8 @@
     <string name="adminUrlSum">HTTPS base URL of the openPTT admin, e.g. https://ptt.harro.ch. Leave blank to disable long-press shift control.</string>
     <string name="loneWorkerEnabled">Lone-worker mode</string>
     <string name="loneWorkerEnabledSum">When enabled, triple-tap PTT starts/ends a shift (except in the Phone channel). Disable this for dispatchers and phone operators who don\'t run shifts.</string>
+    <string name="phone_mute_toggled_tts">Call mute toggled.</string>
+    <string name="phone_hung_up_tts">Call ended.</string>
     <string name="shift_started_tts">Shift started. Ends at %s.</string>
     <string name="shift_stopping_tts">Ending shift. Long press again to cancel.</string>
     <string name="shift_stopped_tts">Shift ended.</string>

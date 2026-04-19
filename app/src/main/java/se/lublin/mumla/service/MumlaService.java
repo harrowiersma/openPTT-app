@@ -397,6 +397,73 @@ public class MumlaService extends HumlaService implements
         return null;
     }
 
+    /** Public wrapper — MumlaActivity needs this for its KEYCODE_CALL /
+     *  KEYCODE_MENU gate (only act when in the Phone channel). */
+    public String currentChannelName() {
+        return currentMumbleChannelName();
+    }
+
+    /** Green-button (KEYCODE_CALL) handler: toggle caller-mute via admin.
+     *  Server signals sip-bridge with SIGUSR2; caller hears silence until
+     *  toggled again. TTS locally so the user knows the state changed.
+     */
+    public void phoneMuteToggle() {
+        String adminUrl = mSettings.getAdminUrl();
+        if (adminUrl == null || adminUrl.isEmpty()) {
+            Log.w(TAG, "phoneMuteToggle: admin URL not configured");
+            return;
+        }
+        String username = currentMumbleUsername();
+        if (username == null) return;
+        speak(getString(R.string.phone_mute_toggled_tts));
+        new Thread(() -> _postPhoneControl(adminUrl + "/api/sip/mute-toggle", username)).start();
+    }
+
+    /** MENU key handler: hang up the active phone call.
+     *  Server signals sip-bridge with SIGUSR1. */
+    public void phoneHangup() {
+        String adminUrl = mSettings.getAdminUrl();
+        if (adminUrl == null || adminUrl.isEmpty()) {
+            Log.w(TAG, "phoneHangup: admin URL not configured");
+            return;
+        }
+        String username = currentMumbleUsername();
+        if (username == null) return;
+        speak(getString(R.string.phone_hung_up_tts));
+        new Thread(() -> _postPhoneControl(adminUrl + "/api/sip/hangup-current", username)).start();
+    }
+
+    private void _postPhoneControl(String url, String username) {
+        java.net.HttpURLConnection conn = null;
+        try {
+            java.net.URL u = new java.net.URL(url);
+            conn = (java.net.HttpURLConnection) u.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(4000);
+            conn.setReadTimeout(4000);
+            String body = "{\"username\":\"" + username.replace("\"", "\\\"") + "\"}";
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                os.write(body.getBytes("UTF-8"));
+            }
+            int code = conn.getResponseCode();
+            Log.i(TAG, "phone control " + url + " → " + code);
+        } catch (Exception e) {
+            Log.w(TAG, "phone control post failed for " + url, e);
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    /** Short TTS utterance for confirmations. Respects isTextToSpeechEnabled;
+     *  no-ops if the engine isn't ready yet. */
+    private void speak(String text) {
+        if (mTTS != null && mTTSReady && mSettings.isTextToSpeechEnabled()) {
+            mTTS.speak(text, TextToSpeech.QUEUE_FLUSH, null, "phone_ctrl");
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
