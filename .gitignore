@@ -4,6 +4,10 @@ build/
 .gradle/
 *.iml
 signing.gradle
+signing-beta.gradle
+keystore.properties
+*.jks
+*.keystore
 
 # Eclipse
 bin/

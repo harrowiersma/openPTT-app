@@ -25,4 +25,11 @@
     <dimen name="activity_horizontal_margin">16dp</dimen>
     <dimen name="activity_vertical_margin">16dp</dimen>
 
+    <!-- Defaults for phone-sized screens; values-small/ overrides these
+         with tighter numbers for the P50's 240x320 display. Lint requires
+         a base declaration so reference from any configuration is safe. -->
+    <dimen name="channel_item_padding">8dp</dimen>
+    <dimen name="channel_item_text_size">16sp</dimen>
+    <dimen name="toolbar_height">56dp</dimen>
+
 </resources>
