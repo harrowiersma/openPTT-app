@@ -106,6 +106,13 @@ android {
     buildTypes {
         // signingConfig beta will override
         release {
+            // Internal-use release: keep debuggable so operators can
+            // `adb shell run-as` to back up / seed app state, and so the
+            // provisioning script's shared_prefs + mumble.db push
+            // (which relies on run-as) keeps working. Tradeoff: this
+            // forgoes a tiny layer of reverse-engineering friction that
+            // doesn't matter for a signed internal fleet.
+            debuggable true
             if (android.hasProperty("signingConfigs")) {
                 if (signingConfigs.hasProperty("release")) {
                     signingConfig = signingConfigs.release
