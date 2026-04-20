@@ -1012,15 +1012,31 @@ public class MumlaService extends HumlaService implements
         try {
             IChannel root = getRootChannel();
             if (root == null) return;
-            // Only cycle through direct children of Root — matches the visible channel list order.
-            // Subchannels are already sorted by position then name (Channel.compareTo).
-            List<? extends IChannel> channels = root.getSubchannels();
+            // Cycle direct children of Root in the SAME filtered+
+            // alphabetical-sorted order the carousel displays, otherwise
+            // turning the knob clockwise can visually jump the carousel
+            // to a channel that's to the left of current (because the
+            // server-order next channel is alphabetically earlier).
+            List<? extends IChannel> raw = root.getSubchannels();
+            if (raw == null || raw.isEmpty()) return;
+            java.util.List<IChannel> channels = new java.util.ArrayList<>();
+            for (IChannel c : raw) {
+                String nm = c.getName() == null ? "" : c.getName();
+                if (!nm.startsWith("Call-")) channels.add(c);
+            }
+            java.util.Collections.sort(channels, new java.util.Comparator<IChannel>() {
+                @Override public int compare(IChannel a, IChannel b) {
+                    String an = a.getName() == null ? "" : a.getName();
+                    String bn = b.getName() == null ? "" : b.getName();
+                    return an.compareToIgnoreCase(bn);
+                }
+            });
             if (channels.isEmpty()) return;
 
             IChannel current = getSessionChannel();
             int currentIndex = -1;
             for (int i = 0; i < channels.size(); i++) {
-                if (channels.get(i).getId() == current.getId()) {
+                if (current != null && channels.get(i).getId() == current.getId()) {
                     currentIndex = i;
                     break;
                 }

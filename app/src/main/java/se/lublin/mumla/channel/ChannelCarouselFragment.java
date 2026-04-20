@@ -224,6 +224,11 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
      * position. Shows the previous/next destination channel names
      * ("◀ Emergency" / "Phone ▶") so the operator knows where the
      * D-pad LEFT/RIGHT (and rotary knob) will take them.
+     *
+     * Both pills are sized to the widest possible label in the set
+     * ("◀ <longest name>" + "<longest name> ▶") so they stay visually
+     * balanced instead of jittering around the edges as the user
+     * scrolls through channels of varying name length.
      */
     private void updateSoftkeyLabels(int currentPos) {
         if (mSoftkeyLeft == null || mSoftkeyRight == null) return;
@@ -239,6 +244,39 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         }
         mSoftkeyLeft.setText(prevName.isEmpty() ? "◀" : "◀ " + prevName);
         mSoftkeyRight.setText(nextName.isEmpty() ? "▶" : nextName + " ▶");
+        applySoftkeyFixedWidth();
+    }
+
+    /**
+     * Measure the widest possible pill label across all channels in the
+     * carousel and apply it as minWidth to both pills — guarantees
+     * both ends of the bar are the same size and the text is centered.
+     */
+    private void applySoftkeyFixedWidth() {
+        if (mSoftkeyLeft == null || mSoftkeyRight == null) return;
+        String longest = "";
+        if (getService() != null && getService().isConnected()) {
+            try {
+                IHumlaSession session = getService().HumlaSession();
+                for (Integer id : mChannelIds) {
+                    IChannel c = findChannelById(session.getRootChannel(), id);
+                    if (c == null || c.getName() == null) continue;
+                    if (c.getName().length() > longest.length()) longest = c.getName();
+                }
+            } catch (IllegalStateException e) {
+                // fall through with whatever we have
+            }
+        }
+        // Measure "◀ <longest>" (or "<longest> ▶", same length) using
+        // the left pill's paint so the font/size/bold match the real
+        // render. Add pill internal padding to arrive at the outer
+        // minWidth value.
+        String sample = "◀ " + longest;
+        float textW = mSoftkeyLeft.getPaint().measureText(sample);
+        int padding = mSoftkeyLeft.getPaddingStart() + mSoftkeyLeft.getPaddingEnd();
+        int minW = Math.round(textW) + padding + dp(2);  // small slack
+        mSoftkeyLeft.setMinWidth(minW);
+        mSoftkeyRight.setMinWidth(minW);
     }
 
     /** Repopulate the user list + band for the currently-selected tile. */
