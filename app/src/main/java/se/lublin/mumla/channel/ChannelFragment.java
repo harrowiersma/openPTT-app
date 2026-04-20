@@ -313,7 +313,10 @@ public class ChannelFragment extends HumlaServiceFragment implements SharedPrefe
     private void configureInput() {
         Settings settings = Settings.getInstance(getActivity());
 
-        ViewGroup.LayoutParams params = mTalkView.getLayoutParams();
+        // Height now applied to the PTT button only — the row (mTalkView)
+        // wraps its tallest child so the Prev/Next labels remain vertically
+        // centered next to whatever height the operator has configured.
+        ViewGroup.LayoutParams params = mTalkButton.getLayoutParams();
         params.height = settings.getPTTButtonHeight();
         mTalkButton.setLayoutParams(params);
 
@@ -335,7 +338,10 @@ public class ChannelFragment extends HumlaServiceFragment implements SharedPrefe
     }
 
     private void setTalkButtonHidden(final boolean hidden) {
-        mTalkView.setVisibility(hidden ? View.GONE : View.VISIBLE);
+        // Hide the PTT button alone (not the whole row) so the Prev/Next
+        // softkey labels stay put. INVISIBLE, not GONE — keep the slot so
+        // Prev and Next don't re-center when the button comes and goes.
+        mTalkButton.setVisibility(hidden ? View.INVISIBLE : View.VISIBLE);
         mTalkButtonHidden = hidden;
     }
 

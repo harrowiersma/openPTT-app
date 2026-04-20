@@ -97,7 +97,7 @@ public class Settings {
     public static final String PREF_LANGUAGE = "language";
 
     public static final String PREF_PTT_BUTTON_HEIGHT = "pttButtonHeight";
-    public static final int DEFAULT_PTT_BUTTON_HEIGHT = 60;
+    public static final int DEFAULT_PTT_BUTTON_HEIGHT = 40;
 
     /**
      * The DB identifier for the default certificate.

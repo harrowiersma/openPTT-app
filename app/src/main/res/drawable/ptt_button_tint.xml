@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Color when PTT button is pressed -->
-    <item android:state_pressed="true" android:color="?attr/pttPressed" />
-    <!-- Color when PTT button is in sticky mode, and activate -->
-    <item android:state_activated="true" android:color="?attr/pttPressed" />
-    <!-- Normal primary color in default state -->
+    <!-- Transmitting (pressed / talking). Bright green so the operator
+         can tell at a glance the mic is hot — overrides the former
+         theme-tinted blue that was too easy to miss in daylight. -->
+    <item android:state_pressed="true" android:color="@color/ptt_transmitting" />
+    <!-- Sticky / toggle-to-talk mode is also "transmitting". -->
+    <item android:state_activated="true" android:color="@color/ptt_transmitting" />
+    <!-- Idle. -->
     <item android:color="?attr/colorPrimary" />
 </selector>

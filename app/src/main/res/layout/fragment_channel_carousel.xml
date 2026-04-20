@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Channel carousel host. Softkey labels (Prev / Next) now live in
+     the outer fragment_channel.xml layout flanking the PTT button,
+     so this fragment is just the ViewPager2. -->
 <androidx.viewpager2.widget.ViewPager2
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/channelCarouselPager"

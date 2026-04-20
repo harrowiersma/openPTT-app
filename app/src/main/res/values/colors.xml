@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="md_theme_light_primary">#3949ab</color>
-    <color name="md_theme_light_primary_darker">#212b64</color> <!-- for pttPressed -->
+    <color name="md_theme_light_primary_darker">#212b64</color>
     <color name="md_theme_light_onPrimary">#ffffff</color>
 
     <color name="md_theme_dark_primary">#1a3a4f</color>
-    <color name="md_theme_dark_primary_lighter">#2a5070</color> <!-- for pttPressed -->
+    <color name="md_theme_dark_primary_lighter">#2a5070</color>
     <color name="md_theme_dark_primary_lighter_more">#4fc3f7</color> <!-- for higher-contrast buttons in dark mode -->
     <color name="md_theme_dark_onPrimary">#4fc3f7</color>
+
+    <!-- Bright green "transmitting" tint applied to the PTT bar while
+         the user is talking (pressed/activated). Vivid enough to read
+         at a glance under sunlight; a radio operator needs to know
+         at-a-glance whether the mic is hot. -->
+    <color name="ptt_transmitting">#00C853</color>
 
     <color name="hot_corner_highlight">#ff2079ab</color>
 

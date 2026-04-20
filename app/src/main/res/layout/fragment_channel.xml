@@ -64,17 +64,37 @@
 
     </FrameLayout>
 
+    <!-- Bottom bar: Prev | PTT | Next. Prev/Next are softkey labels
+         (Hytera convention) matching the D-pad LEFT/RIGHT + rotary
+         knob keycodes that MumlaActivity.dispatchKeyEvent maps to
+         switchChannel(). They stay put even when the PTT button is
+         hidden (mute/suppressed) so the operator's navigation hint
+         never disappears. -->
     <LinearLayout
         android:id="@+id/pushtotalk_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_horizontal"
-        android:orientation="vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:background="#101010">
+
+        <TextView
+            android:id="@+id/softkeyLeft"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:text="◀ Prev"
+            android:gravity="center"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:textColor="#FFC107"
+            android:textStyle="bold"
+            android:textSize="13sp"/>
 
         <Button
             android:id="@+id/pushtotalk"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="40dp"
             android:text="@string/ptt"
             android:textColor="?android:attr/textColorPrimaryInverse"
             android:textAllCaps="true"
@@ -84,6 +104,18 @@
             app:cornerRadius="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp" />
+
+        <TextView
+            android:id="@+id/softkeyRight"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:text="Next ▶"
+            android:gravity="center"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:textColor="#FFC107"
+            android:textStyle="bold"
+            android:textSize="13sp"/>
     </LinearLayout>
 
 </LinearLayout>
