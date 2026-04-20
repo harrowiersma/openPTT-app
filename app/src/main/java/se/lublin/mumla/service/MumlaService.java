@@ -59,6 +59,8 @@ import se.lublin.humla.util.HumlaObserver;
 import se.lublin.mumla.R;
 import se.lublin.mumla.Settings;
 import se.lublin.mumla.admin.CapabilitiesClient;
+import se.lublin.mumla.phone.IncomingCallActivity;
+import se.lublin.mumla.phone.IncomingCallParser;
 import se.lublin.mumla.service.ipc.TalkBroadcastReceiver;
 import se.lublin.mumla.util.HtmlUtils;
 
@@ -249,6 +251,26 @@ public class MumlaService extends HumlaService implements
 
         @Override
         public void onMessageLogged(IMessage message) {
+            // Intercept the admin's INCOMING_CALL whisper BEFORE any
+            // rendering — raise the full-screen overlay and swallow the
+            // payload so it never hits TTS, chat notifications, or the
+            // chat log. Gated on hasFeature("sip") so a disabled-SIP
+            // fleet simply drops the whisper.
+            String rawMessage = message.getMessage() == null ? "" : message.getMessage();
+            if (IncomingCallParser.looksLike(Jsoup.parseBodyFragment(rawMessage).text())
+                    && hasFeature("sip")) {
+                IncomingCallParser.Result call =
+                        IncomingCallParser.parse(Jsoup.parseBodyFragment(rawMessage).text());
+                if (call != null) {
+                    Intent i = new Intent(MumlaService.this, IncomingCallActivity.class);
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    i.putExtra(IncomingCallActivity.EXTRA_CALLER_ID, call.callerId);
+                    i.putExtra(IncomingCallActivity.EXTRA_SUB_CHANNEL, call.subChannel);
+                    startActivity(i);
+                    return;
+                }
+            }
+
             // Split on / strip all HTML tags.
             Document parsedMessage = Jsoup.parseBodyFragment(message.getMessage());
             String strippedMessage = parsedMessage.text();
@@ -337,6 +359,10 @@ public class MumlaService extends HumlaService implements
     public static final String ACTION_PTT_UP = "se.lublin.mumla.PTT_UP";
     public static final String ACTION_SHIFT_KEY_DOWN = "se.lublin.mumla.SHIFT_KEY_DOWN";
     public static final String ACTION_SHIFT_KEY_UP = "se.lublin.mumla.SHIFT_KEY_UP";
+    /** Fired by IncomingCallActivity when the operator taps Answer. */
+    public static final String ACTION_MOVE_TO_CHANNEL = "se.lublin.mumla.MOVE_TO_CHANNEL";
+    public static final String EXTRA_CHANNEL_NAME = "channel_name";
+    public static final String EXTRA_PARENT_NAME = "parent_name";
 
     private ShiftController mShiftController;
 
@@ -380,6 +406,12 @@ public class MumlaService extends HumlaService implements
                 if (hasFeature("lone_worker")) {
                     shiftController().onKeyUp(currentMumbleUsername());
                 }
+                return START_NOT_STICKY;
+            } else if (ACTION_MOVE_TO_CHANNEL.equals(action)) {
+                String name = intent.getStringExtra(EXTRA_CHANNEL_NAME);
+                String parentName = intent.getStringExtra(EXTRA_PARENT_NAME);
+                Log.i(TAG, "MOVE_TO_CHANNEL: " + parentName + "/" + name);
+                moveSessionToNamedChannel(parentName, name);
                 return START_NOT_STICKY;
             }
         }
@@ -478,6 +510,60 @@ public class MumlaService extends HumlaService implements
         } finally {
             if (conn != null) conn.disconnect();
         }
+    }
+
+    /** Resolve "parentName/childName" (e.g. "Phone/Call-1") to an
+     *  IChannel and ask Humla to join it. Called by
+     *  IncomingCallActivity when the operator taps Answer. */
+    private void moveSessionToNamedChannel(String parentName, String childName) {
+        if (childName == null || childName.isEmpty()) return;
+        try {
+            if (!isConnectionEstablished()) return;
+            se.lublin.humla.IHumlaSession session = HumlaSession();
+            if (session == null) return;
+            se.lublin.humla.model.IChannel target =
+                    findChildByName(session.getRootChannel(), parentName, childName);
+            if (target == null) {
+                Log.w(TAG, "move-to-channel: no match for "
+                        + parentName + "/" + childName);
+                return;
+            }
+            session.joinChannel(target.getId());
+            Log.i(TAG, "moved session to " + parentName + "/" + childName
+                    + " (id=" + target.getId() + ")");
+        } catch (Exception e) {
+            Log.w(TAG, "moveSessionToNamedChannel failed: " + e);
+        }
+    }
+
+    /** Walk the channel tree looking for a child named childName directly
+     *  under a channel named parentName. parentName may be null — then
+     *  we fall back to any channel named childName anywhere in the tree. */
+    private static se.lublin.humla.model.IChannel findChildByName(
+            se.lublin.humla.model.IChannel node, String parentName, String childName) {
+        if (node == null) return null;
+        java.util.List<? extends se.lublin.humla.model.IChannel> subs = node.getSubchannels();
+        if (subs == null) return null;
+        // Prefer the constrained match: childName under a channel whose
+        // name equals parentName — avoids ambiguity if multiple parents
+        // happen to contain the same child name.
+        if (parentName != null && parentName.equals(node.getName())) {
+            for (se.lublin.humla.model.IChannel c : subs) {
+                if (childName.equals(c.getName())) return c;
+            }
+        }
+        for (se.lublin.humla.model.IChannel c : subs) {
+            se.lublin.humla.model.IChannel hit = findChildByName(c, parentName, childName);
+            if (hit != null) return hit;
+        }
+        // Fallback: parent constraint failed, but maybe the child exists
+        // by itself somewhere — only used if parentName is null/unknown.
+        if (parentName == null) {
+            for (se.lublin.humla.model.IChannel c : subs) {
+                if (childName.equals(c.getName())) return c;
+            }
+        }
+        return null;
     }
 
     /** Kick a background thread to re-pull /api/status/capabilities from

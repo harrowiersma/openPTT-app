@@ -142,6 +142,16 @@
         </activity>
 
         <activity
+            android:name=".phone.IncomingCallActivity"
+            android:theme="@style/Theme.Mumla.Fullscreen"
+            android:exported="false"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""/>
+
+        <activity
             android:name=".preference.CertificateSelectActivity"
             android:theme="@style/Theme.Mumla"
             android:exported="true">

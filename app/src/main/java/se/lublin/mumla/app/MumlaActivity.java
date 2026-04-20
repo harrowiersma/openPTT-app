@@ -477,6 +477,15 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
     // Hytera P50 hardware PTT button keycode (from BroadcastKeyManager)
     private static final int KEYCODE_HYTERA_PTT = 142;
 
+    /** True if the session user is currently in a Phone/Call-* sub-
+     *  channel — i.e. actively on a phone call. Used to gate the knob
+     *  so mid-call rotations don't drop the operator off the line. */
+    private boolean isInActivePhoneCall() {
+        if (mService == null) return false;
+        String name = mService.currentChannelName();
+        return name != null && name.startsWith("Call-");
+    }
+
     /**
      * Intercept key events BEFORE views consume them.
      * This is critical for PTT: DPAD_DOWN would otherwise be eaten by ListView navigation.
@@ -506,7 +515,23 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
         // left/right buttons both advance the carousel. The P50 has no
         // touchscreen swipe, so every direction-change comes through
         // one of these four keycodes.
+        //
+        // Exception: while the session is inside a Phone/Call-* sub-
+        // channel (an active phone call), knob direction keys are
+        // locked and a toast tells the operator how to hang up —
+        // accidentally rotating the knob mid-call would otherwise move
+        // them out of Call-N and drop the phone audio.
         if (mService != null && mService.isConnected() && event.getAction() == KeyEvent.ACTION_DOWN) {
+            boolean isDir = keyCode == KeyEvent.KEYCODE_F5
+                    || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+                    || keyCode == KeyEvent.KEYCODE_F6
+                    || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
+            if (isDir && isInActivePhoneCall()) {
+                android.widget.Toast.makeText(this,
+                        R.string.phone_call_knob_blocked,
+                        android.widget.Toast.LENGTH_SHORT).show();
+                return true;
+            }
             if (keyCode == KeyEvent.KEYCODE_F5
                     || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 mService.switchChannel(-1);
