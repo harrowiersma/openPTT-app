@@ -28,7 +28,9 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
@@ -56,6 +58,7 @@ import se.lublin.humla.util.HumlaException;
 import se.lublin.humla.util.HumlaObserver;
 import se.lublin.mumla.R;
 import se.lublin.mumla.Settings;
+import se.lublin.mumla.admin.CapabilitiesClient;
 import se.lublin.mumla.service.ipc.TalkBroadcastReceiver;
 import se.lublin.mumla.util.HtmlUtils;
 
@@ -337,6 +340,23 @@ public class MumlaService extends HumlaService implements
 
     private ShiftController mShiftController;
 
+    /** Feature-flag cache mirrored from /api/status/capabilities. */
+    private CapabilitiesClient mCapabilities;
+    /** Re-fetches capabilities every 10 min so toggles made while the
+     *  app is running propagate without a restart. */
+    private Handler mCapabilitiesHandler;
+    private static final long CAPABILITIES_FIRST_DELAY_MS = 30_000L;
+    private static final long CAPABILITIES_INTERVAL_MS = 10L * 60L * 1000L;
+    private final Runnable mCapabilitiesTick = new Runnable() {
+        @Override public void run() {
+            refreshCapabilitiesInBackground();
+            if (mCapabilitiesHandler != null) {
+                mCapabilitiesHandler.postDelayed(this, CAPABILITIES_INTERVAL_MS);
+            }
+        }
+    };
+
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
@@ -456,6 +476,24 @@ public class MumlaService extends HumlaService implements
         }
     }
 
+    /** Kick a background thread to re-pull /api/status/capabilities from
+     *  the admin URL. Safe to call repeatedly; silently no-ops if the
+     *  admin URL isn't configured yet. */
+    private void refreshCapabilitiesInBackground() {
+        if (mCapabilities == null || mSettings == null) return;
+        final String adminUrl = mSettings.getAdminUrl();
+        if (adminUrl == null || adminUrl.isEmpty()) return;
+        new Thread(() -> mCapabilities.refresh(adminUrl),
+                "capabilities-refresh").start();
+    }
+
+    /** IMumlaService — feature-flag gate readable from anywhere the
+     *  service binder is exposed (Activities, Receivers, etc.). */
+    @Override
+    public boolean hasFeature(String key) {
+        return mCapabilities == null || mCapabilities.hasFeature(key);
+    }
+
     /** Short TTS utterance for confirmations. Respects isTextToSpeechEnabled;
      *  no-ops if the engine isn't ready yet. */
     private void speak(String text) {
@@ -511,6 +549,14 @@ public class MumlaService extends HumlaService implements
         // silent (TTS takes ~1-2s to initialize on a cold start).
         prewarmShiftController();
 
+        // Feature-flag cache. Kick off an immediate background fetch so
+        // gated features respect the current admin state within seconds
+        // of startup, then re-poll every 10 min for live toggle updates.
+        mCapabilities = new CapabilitiesClient(this);
+        refreshCapabilitiesInBackground();
+        mCapabilitiesHandler = new Handler(Looper.getMainLooper());
+        mCapabilitiesHandler.postDelayed(mCapabilitiesTick, CAPABILITIES_FIRST_DELAY_MS);
+
         // Set up TTS
         if(mSettings.isTextToSpeechEnabled())
             mTTS = new TextToSpeech(this, mTTSInitListener);
@@ -546,6 +592,10 @@ public class MumlaService extends HumlaService implements
         if(mSoundPool != null) mSoundPool.release();
         if(mLocationReporter != null) mLocationReporter.stop();
         if(mShiftController != null) { mShiftController.shutdown(); mShiftController = null; }
+        if(mCapabilitiesHandler != null) {
+            mCapabilitiesHandler.removeCallbacks(mCapabilitiesTick);
+            mCapabilitiesHandler = null;
+        }
         mMessageLog = null;
         mMessageNotification.dismiss();
         super.onDestroy();

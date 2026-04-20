@@ -39,4 +39,15 @@ public interface IMumlaService extends IHumlaService {
     void phoneMuteToggle();
 
     void phoneHangup();
+
+    /**
+     * Return true if the given feature flag (as published by the admin
+     * server at /api/status/capabilities) is enabled. Defaults to true
+     * when the cache has never been populated, so a first launch before
+     * the initial refresh completes is never crippled.
+     *
+     * @param key feature key, e.g. "lone_worker", "sip", "dispatch",
+     *            "weather", "sos"
+     */
+    boolean hasFeature(String key);
 }
