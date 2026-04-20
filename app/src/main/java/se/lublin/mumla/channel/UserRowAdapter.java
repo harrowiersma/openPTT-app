@@ -57,7 +57,7 @@ public class UserRowAdapter extends RecyclerView.Adapter<UserRowAdapter.VH> {
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View v = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.overlay_user_row, parent, false);
+                .inflate(R.layout.channel_card_user_row, parent, false);
         return new VH(v);
     }
 

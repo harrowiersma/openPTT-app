@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   ~ Single-channel "card" page used by the ViewPager2 carousel.
-  ~ Shows channel name, a hint that ◀/▶ (knob) cycles channels,
-  ~ a member count, and the users currently in this channel.
+  ~ Tuned for the 240x320 P50 screen: large bold channel name (the
+  ~ hero element), prominent ◀/▶ arrows mapped to the D-pad +
+  ~ rotary knob, and a user list with high-contrast text.
   -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="@dimen/padding_small">
+    android:paddingStart="@dimen/padding_small"
+    android:paddingEnd="@dimen/padding_small"
+    android:paddingTop="4dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -21,16 +24,18 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="◀"
-            android:textSize="14sp"
-            android:paddingEnd="@dimen/padding_small"/>
+            android:textSize="22sp"
+            android:textColor="#AAAAAA"
+            android:paddingEnd="6dp"/>
 
         <TextView
             android:id="@+id/channelCardName"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:textSize="18sp"
+            android:textSize="26sp"
             android:textStyle="bold"
+            android:textColor="#FFFFFF"
             android:gravity="center"
             android:ellipsize="end"
             android:maxLines="1"/>
@@ -40,18 +45,20 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="▶"
-            android:textSize="14sp"
-            android:paddingStart="@dimen/padding_small"/>
+            android:textSize="22sp"
+            android:textColor="#AAAAAA"
+            android:paddingStart="6dp"/>
     </LinearLayout>
 
     <TextView
         android:id="@+id/channelCardMembers"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="11sp"
+        android:textSize="13sp"
+        android:textColor="#BBBBBB"
         android:gravity="center"
         android:paddingTop="2dp"
-        android:paddingBottom="@dimen/padding_small"/>
+        android:paddingBottom="6dp"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/channelCardUserList"

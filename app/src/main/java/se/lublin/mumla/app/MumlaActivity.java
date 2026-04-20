@@ -502,12 +502,17 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
             }
             return true;
         }
-        // Channel knob: F5 = previous channel, F6 = next channel
+        // Channel navigation: rotary knob (F5/F6) AND the D-pad
+        // left/right buttons both advance the carousel. The P50 has no
+        // touchscreen swipe, so every direction-change comes through
+        // one of these four keycodes.
         if (mService != null && mService.isConnected() && event.getAction() == KeyEvent.ACTION_DOWN) {
-            if (keyCode == KeyEvent.KEYCODE_F5) {
+            if (keyCode == KeyEvent.KEYCODE_F5
+                    || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                 mService.switchChannel(-1);
                 return true;
-            } else if (keyCode == KeyEvent.KEYCODE_F6) {
+            } else if (keyCode == KeyEvent.KEYCODE_F6
+                    || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                 mService.switchChannel(1);
                 return true;
             }
