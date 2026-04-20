@@ -64,46 +64,33 @@
 
     </FrameLayout>
 
-    <!-- Bottom bar: Prev | PTT | Next. Prev/Next are softkey labels
-         (Hytera convention) matching the D-pad LEFT/RIGHT + rotary
-         knob keycodes that MumlaActivity.dispatchKeyEvent maps to
-         switchChannel(). They stay put even when the PTT button is
-         hidden (mute/suppressed) so the operator's navigation hint
-         never disappears. -->
+    <!-- Thin rule separating the PTT row from whatever system nav
+         buttons Android draws below, so the round button reads as
+         part of the app and not as a system-nav affordance. -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#333333"/>
+
+    <!-- Round centered PTT. Destination pills (PREV / NEXT) moved up
+         into the carousel header next to the active channel name —
+         navigation context belongs with the channel label it relates
+         to, not hovering over the system-nav bar. -->
     <LinearLayout
         android:id="@+id/pushtotalk_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:orientation="horizontal"
-        android:background="#101010">
+        android:background="#0A0A0A"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
 
-        <TextView
-            android:id="@+id/softkeyLeft"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="match_parent"
-            android:text="◀ PREV"
-            android:gravity="start|center_vertical"
-            android:paddingStart="6dp"
-            android:paddingEnd="6dp"
-            android:textColor="#FFC107"
-            android:textStyle="bold"
-            android:textSize="11sp"
-            android:maxLines="2"
-            android:lineSpacingExtra="-2dp"/>
-
-        <!-- Round PTT button. cornerRadius equal to half the height turns
-             a square MaterialButton into a circle; we size 56x56dp with
-             only the mic icon inside (no text label — a radio operator
-             reads the transmit state from the color, not a word). -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/pushtotalk"
             style="@style/Widget.MaterialComponents.Button"
             android:layout_width="56dp"
             android:layout_height="56dp"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="4dp"
             android:contentDescription="@string/ptt"
             app:backgroundTint="@drawable/ptt_button_tint"
             app:cornerRadius="28dp"
@@ -115,21 +102,6 @@
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:padding="0dp" />
-
-        <TextView
-            android:id="@+id/softkeyRight"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="match_parent"
-            android:text="NEXT ▶"
-            android:gravity="end|center_vertical"
-            android:paddingStart="6dp"
-            android:paddingEnd="6dp"
-            android:textColor="#FFC107"
-            android:textStyle="bold"
-            android:textSize="11sp"
-            android:maxLines="2"
-            android:lineSpacingExtra="-2dp"/>
     </LinearLayout>
 
 </LinearLayout>

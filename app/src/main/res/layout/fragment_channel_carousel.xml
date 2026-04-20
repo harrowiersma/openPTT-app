@@ -2,14 +2,17 @@
 <!--
   ~ Channel carousel host.
   ~
-  ~ Vertical stack, top-down:
-  ~   1. Short "CHANNELS" header band.
-  ~   2. Fixed-height ViewPager2 showing one channel tile at a time.
-  ~   3. Page dots indicating position in the carousel.
-  ~   4. "CURRENT USERS" band with online/total count.
-  ~   5. RecyclerView user list (weight=1 — absorbs all remaining
-  ~      vertical space, so a smaller screen naturally produces a
-  ~      shorter user list).
+  ~ Layout top-down:
+  ~   1. "CHANNELS" header band.
+  ~   2. FrameLayout that overlays the ViewPager2 (current channel
+  ~      tile) with two floating pill chips anchored to either side —
+  ~      the left pill shows the previous channel destination, the
+  ~      right the next. Pills live here (next to the channel name)
+  ~      instead of the bottom PTT row so the operator's eye doesn't
+  ~      confuse them with the system-nav Back/Menu buttons.
+  ~   3. Page dots.
+  ~   4. "CURRENT USERS" band with online count.
+  ~   5. RecyclerView user list (weight=1, absorbs remaining space).
   -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -29,10 +32,53 @@
         android:paddingTop="4dp"
         android:paddingBottom="2dp"/>
 
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/channelCarouselPager"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="70dp"/>
+        android:layout_height="wrap_content">
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/channelCarouselPager"
+            android:layout_width="match_parent"
+            android:layout_height="70dp"/>
+
+        <TextView
+            android:id="@+id/softkeyLeft"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/softkey_pill_bg"
+            android:text="◀"
+            android:textColor="#FFC107"
+            android:textStyle="bold"
+            android:textSize="11sp"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:maxWidth="96dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"/>
+
+        <TextView
+            android:id="@+id/softkeyRight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/softkey_pill_bg"
+            android:text="▶"
+            android:textColor="#FFC107"
+            android:textStyle="bold"
+            android:textSize="11sp"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:maxWidth="96dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"/>
+    </FrameLayout>
 
     <LinearLayout
         android:id="@+id/channelCarouselDots"

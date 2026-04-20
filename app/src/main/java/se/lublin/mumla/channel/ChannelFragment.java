@@ -44,13 +44,9 @@ import androidx.viewpager.widget.ViewPager;
 import java.util.ArrayList;
 import java.util.List;
 
-import java.util.Collections;
-import java.util.Comparator;
-
 import se.lublin.humla.HumlaService;
 import se.lublin.humla.IHumlaService;
 import se.lublin.humla.IHumlaSession;
-import se.lublin.humla.model.IChannel;
 import se.lublin.humla.model.IUser;
 import se.lublin.humla.model.WhisperTarget;
 import se.lublin.humla.util.HumlaDisconnectedException;
@@ -72,12 +68,6 @@ public class ChannelFragment extends HumlaServiceFragment implements SharedPrefe
     private PagerTabStrip mTabStrip;
     private Button mTalkButton;
     private View mTalkView;
-
-    /** Softkey labels flanking the PTT button — updated to show the
-     *  destination channel name ("PREV\nEmergency") on every own-session
-     *  channel change. */
-    private TextView mSoftkeyLeft;
-    private TextView mSoftkeyRight;
 
     private View mTargetPanel;
     private ImageView mTargetPanelCancel;
@@ -140,27 +130,6 @@ public class ChannelFragment extends HumlaServiceFragment implements SharedPrefe
         public void onVoiceTargetChanged(VoiceTargetMode mode) {
             configureTargetPanel();
         }
-
-        @Override
-        public void onUserJoinedChannel(IUser user, IChannel newChannel, IChannel oldChannel) {
-            if (getService() == null || !getService().isConnected()) return;
-            try {
-                int selfSession = getService().HumlaSession().getSessionId();
-                if (user != null && user.getSession() == selfSession) {
-                    updateSoftkeyLabels();
-                }
-            } catch (IllegalStateException e) {
-                // session not yet synchronized — labels will refresh on
-                // onServiceBound.
-            }
-        }
-
-        @Override
-        public void onChannelAdded(IChannel channel) { updateSoftkeyLabels(); }
-        @Override
-        public void onChannelRemoved(IChannel channel) { updateSoftkeyLabels(); }
-        @Override
-        public void onChannelStateUpdated(IChannel channel) { updateSoftkeyLabels(); }
     };
 
     @Override
@@ -231,8 +200,6 @@ public class ChannelFragment extends HumlaServiceFragment implements SharedPrefe
             }
         });
         mTargetPanelText = (TextView) view.findViewById(R.id.target_panel_warning);
-        mSoftkeyLeft = (TextView) view.findViewById(R.id.softkeyLeft);
-        mSoftkeyRight = (TextView) view.findViewById(R.id.softkeyRight);
         configureInput();
         return view;
     }
@@ -313,60 +280,7 @@ public class ChannelFragment extends HumlaServiceFragment implements SharedPrefe
         if (service.getConnectionState() == HumlaService.ConnectionState.CONNECTED) {
             configureTargetPanel();
             configureInput();
-            updateSoftkeyLabels();
         }
-    }
-
-    /**
-     * Update the "◀ PREV / <name>" and "NEXT ▶ / <name>" labels flanking
-     * the PTT button to show the channel the D-pad / knob will take the
-     * user to. Matches the Root-children filter + sort used by
-     * ChannelCarouselFragment so the labels agree with the tile strip.
-     */
-    private void updateSoftkeyLabels() {
-        if (mSoftkeyLeft == null || mSoftkeyRight == null) return;
-        String prevName = "";
-        String nextName = "";
-        try {
-            if (getService() != null && getService().isConnected()) {
-                IHumlaSession session = getService().HumlaSession();
-                IChannel root = session.getRootChannel();
-                if (root != null) {
-                    List<? extends IChannel> kids = root.getSubchannels();
-                    List<IChannel> filtered = new ArrayList<>();
-                    if (kids != null) {
-                        for (IChannel c : kids) {
-                            String nm = c.getName() == null ? "" : c.getName();
-                            if (!nm.startsWith("Call-")) filtered.add(c);
-                        }
-                    }
-                    Collections.sort(filtered, new Comparator<IChannel>() {
-                        @Override public int compare(IChannel a, IChannel b) {
-                            String an = a.getName() == null ? "" : a.getName();
-                            String bn = b.getName() == null ? "" : b.getName();
-                            return an.compareToIgnoreCase(bn);
-                        }
-                    });
-                    IChannel cur = session.getSessionChannel();
-                    int curIdx = -1;
-                    if (cur != null) {
-                        for (int i = 0; i < filtered.size(); i++) {
-                            if (filtered.get(i).getId() == cur.getId()) { curIdx = i; break; }
-                        }
-                    }
-                    if (curIdx >= 0 && filtered.size() > 1) {
-                        int prevIdx = (curIdx - 1 + filtered.size()) % filtered.size();
-                        int nextIdx = (curIdx + 1) % filtered.size();
-                        prevName = filtered.get(prevIdx).getName();
-                        nextName = filtered.get(nextIdx).getName();
-                    }
-                }
-            }
-        } catch (IllegalStateException e) {
-            // session unavailable; fall through with blank destinations
-        }
-        mSoftkeyLeft.setText(prevName.isEmpty() ? "◀ PREV" : "◀ PREV\n" + prevName);
-        mSoftkeyRight.setText(nextName.isEmpty() ? "NEXT ▶" : "NEXT ▶\n" + nextName);
     }
 
     private void configureTargetPanel() {

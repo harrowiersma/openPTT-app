@@ -68,6 +68,11 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
     private RecyclerView mCurrentUsersList;
     private UserRowAdapter mUsersAdapter;
     private CarouselAdapter mPagerAdapter;
+    /** Destination-channel pills floating on either side of the
+     *  ViewPager2. Updated on every channel-tree change + page change
+     *  so the operator sees where the D-pad/knob will take them. */
+    private TextView mSoftkeyLeft;
+    private TextView mSoftkeyRight;
     /** Snapshot of channel IDs currently shown in the carousel, L→R. */
     private final List<Integer> mChannelIds = new ArrayList<>();
 
@@ -109,6 +114,8 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
             if (mPagerAdapter != null) mPagerAdapter.notifyDataSetChanged();
             if (mUsersAdapter != null) mUsersAdapter.submit(null);
             if (mCurrentUsersBand != null) mCurrentUsersBand.setText("");
+            if (mSoftkeyLeft != null) mSoftkeyLeft.setText("◀");
+            if (mSoftkeyRight != null) mSoftkeyRight.setText("▶");
             renderDots(0, -1);
         }
     };
@@ -137,12 +144,14 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         mPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override public void onPageSelected(int position) {
                 renderDots(mChannelIds.size(), position);
-                // Update the user list to track whichever tile is centered.
                 IChannel c = channelAt(position);
                 if (c != null) updateCurrentUsers(c);
+                updateSoftkeyLabels(position);
             }
         });
 
+        mSoftkeyLeft = v.findViewById(R.id.softkeyLeft);
+        mSoftkeyRight = v.findViewById(R.id.softkeyRight);
         mDots = v.findViewById(R.id.channelCarouselDots);
         mCurrentUsersBand = v.findViewById(R.id.channelCurrentUsersBand);
         mCurrentUsersList = v.findViewById(R.id.channelCurrentUsersList);
@@ -204,9 +213,32 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
                 if (first != null) updateCurrentUsers(first);
             }
             renderDots(mChannelIds.size(), mPager.getCurrentItem());
+            updateSoftkeyLabels(mPager.getCurrentItem());
         } catch (IllegalStateException e) {
             Log.d(TAG, "rebuild failed: " + e);
         }
+    }
+
+    /**
+     * Refresh the floating pill labels for the given current-tile
+     * position. Shows the previous/next destination channel names
+     * ("◀ Emergency" / "Phone ▶") so the operator knows where the
+     * D-pad LEFT/RIGHT (and rotary knob) will take them.
+     */
+    private void updateSoftkeyLabels(int currentPos) {
+        if (mSoftkeyLeft == null || mSoftkeyRight == null) return;
+        String prevName = "";
+        String nextName = "";
+        if (currentPos >= 0 && mChannelIds.size() > 1) {
+            int prevIdx = (currentPos - 1 + mChannelIds.size()) % mChannelIds.size();
+            int nextIdx = (currentPos + 1) % mChannelIds.size();
+            IChannel prev = channelAt(prevIdx);
+            IChannel next = channelAt(nextIdx);
+            if (prev != null && prev.getName() != null) prevName = prev.getName();
+            if (next != null && next.getName() != null) nextName = next.getName();
+        }
+        mSoftkeyLeft.setText(prevName.isEmpty() ? "◀" : "◀ " + prevName);
+        mSoftkeyRight.setText(nextName.isEmpty() ? "▶" : nextName + " ▶");
     }
 
     /** Repopulate the user list + band for the currently-selected tile. */
