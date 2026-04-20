@@ -247,6 +247,7 @@
         <item quantity="one">%d user</item>
         <item quantity="other">%d users</item>
     </plurals>
+    <string name="channel_carousel_current_users_band">CURRENT USERS: %1$s (%2$d)</string>
     <string name="defaultChannel">Default channel</string>
     <string name="defaultChannelSum">Auto-join this channel on connect</string>
     <string name="autoConnect">Auto-connect on start</string>

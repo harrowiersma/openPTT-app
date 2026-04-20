@@ -1,9 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Channel carousel host. Softkey labels (Prev / Next) now live in
-     the outer fragment_channel.xml layout flanking the PTT button,
-     so this fragment is just the ViewPager2. -->
-<androidx.viewpager2.widget.ViewPager2
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/channelCarouselPager"
+<!--
+  ~ Channel carousel host.
+  ~
+  ~ Vertical stack, top-down:
+  ~   1. Short "CHANNELS" header band.
+  ~   2. Fixed-height ViewPager2 showing one channel tile at a time.
+  ~   3. Page dots indicating position in the carousel.
+  ~   4. "CURRENT USERS" band with online/total count.
+  ~   5. RecyclerView user list (weight=1 — absorbs all remaining
+  ~      vertical space, so a smaller screen naturally produces a
+  ~      shorter user list).
+  -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"/>
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/channelCarouselHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="CHANNELS"
+        android:gravity="center"
+        android:textStyle="bold"
+        android:textSize="11sp"
+        android:textColor="#9E9E9E"
+        android:letterSpacing="0.15"
+        android:paddingTop="4dp"
+        android:paddingBottom="2dp"/>
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/channelCarouselPager"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"/>
+
+    <LinearLayout
+        android:id="@+id/channelCarouselDots"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingTop="2dp"
+        android:paddingBottom="4dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#333333"/>
+
+    <TextView
+        android:id="@+id/channelCurrentUsersBand"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textColor="#4CAF50"
+        android:letterSpacing="0.10"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:background="#161616"
+        android:gravity="start|center_vertical"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/channelCurrentUsersList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+</LinearLayout>

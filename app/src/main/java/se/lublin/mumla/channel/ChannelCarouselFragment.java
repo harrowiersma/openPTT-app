@@ -1,27 +1,46 @@
 /*
- * Replaces the hierarchical channel tree with a one-channel-per-page
- * ViewPager2 carousel. Only direct children of Root are surfaced —
- * Phone/Call-* sub-channels are reached via the incoming-call overlay
- * (Phase 5), not the knob.
+ * Replaces the hierarchical channel tree with a compact tile strip +
+ * current-channel user list:
  *
- * Navigation is knob-driven (F5/F6 → MumlaService.switchChannel(...) →
- * IHumlaSession.joinChannel(...)). The carousel watches
- * HumlaObserver.onUserJoinedChannel for the session user and programmatically
- * scrolls its ViewPager2 to match. User swipes are disabled on the inner
- * pager so the outer CHANNEL↔CHAT ViewPager owns horizontal gestures.
+ *   ┌──────────────────────────┐
+ *   │         CHANNELS         │   short header band
+ *   ├──────────────────────────┤
+ *   │         [ tile ]         │   ViewPager2 — one channel per page
+ *   │          ● ● ●           │   page dots
+ *   ├──────────────────────────┤
+ *   │  CURRENT USERS (n)       │   "current" band
+ *   ├──────────────────────────┤
+ *   │  harro                   │   user list (absorbs remaining space
+ *   │  yuliia                  │   — shorter on smaller screens)
+ *   └──────────────────────────┘
+ *
+ * Only direct children of Root are surfaced — Phone/Call-*
+ * sub-channels are reached via the incoming-call overlay (Phase 5),
+ * not the knob. Navigation is knob-driven: F5/F6 and D-pad LEFT/RIGHT
+ * both route through MumlaService.switchChannel(...), which calls
+ * IHumlaSession.joinChannel(...). The carousel watches
+ * HumlaObserver.onUserJoinedChannel for the session user and
+ * programmatically scrolls to match; user swipes are disabled on the
+ * inner pager so the outer CHANNEL↔CHAT host owns horizontal gestures.
  */
 
 package se.lublin.mumla.channel;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
 
@@ -44,32 +63,53 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
     private static final String TAG = ChannelCarouselFragment.class.getName();
 
     private ViewPager2 mPager;
-    private CarouselAdapter mAdapter;
-    /** Snapshot of channel IDs currently shown, left-to-right. */
+    private LinearLayout mDots;
+    private TextView mCurrentUsersBand;
+    private RecyclerView mCurrentUsersList;
+    private UserRowAdapter mUsersAdapter;
+    private CarouselAdapter mPagerAdapter;
+    /** Snapshot of channel IDs currently shown in the carousel, L→R. */
     private final List<Integer> mChannelIds = new ArrayList<>();
 
     private final IHumlaObserver mObserver = new HumlaObserver() {
         @Override public void onUserJoinedChannel(IUser user, IChannel newChannel, IChannel oldChannel) {
-            // Snap to the session user's new channel. For other users'
-            // moves the child ChannelCardFragments update their own
-            // user lists via their own observers.
             if (getService() == null || !getService().isConnected()) return;
             try {
-                if (user != null
-                        && user.getSession() == getService().HumlaSession().getSessionId()
-                        && newChannel != null) {
+                int selfSession = getService().HumlaSession().getSessionId();
+                if (user != null && user.getSession() == selfSession && newChannel != null) {
                     scrollToChannelId(newChannel.getId(), true);
+                    updateCurrentUsers(newChannel);
+                    return;
+                }
+                // Somebody else moved — if their old or new channel is the
+                // one we're currently displaying users for, refresh it.
+                IChannel selected = currentChannel();
+                if (selected != null &&
+                        (newChannel != null && newChannel.getId() == selected.getId()
+                                || oldChannel != null && oldChannel.getId() == selected.getId())) {
+                    updateCurrentUsers(selected);
                 }
             } catch (IllegalStateException e) {
                 Log.d(TAG, "onUserJoinedChannel: " + e);
             }
+        }
+        @Override public void onUserConnected(IUser user) { refreshCurrent(); }
+        @Override public void onUserRemoved(IUser user, String reason) { refreshCurrent(); }
+        @Override public void onUserStateUpdated(IUser user) {
+            if (mUsersAdapter != null) mUsersAdapter.refreshUser(user);
+        }
+        @Override public void onUserTalkStateUpdated(IUser user) {
+            if (mUsersAdapter != null) mUsersAdapter.refreshUser(user);
         }
         @Override public void onChannelAdded(IChannel channel) { rebuild(); }
         @Override public void onChannelRemoved(IChannel channel) { rebuild(); }
         @Override public void onChannelStateUpdated(IChannel channel) { rebuild(); }
         @Override public void onDisconnected(HumlaException e) {
             mChannelIds.clear();
-            if (mAdapter != null) mAdapter.notifyDataSetChanged();
+            if (mPagerAdapter != null) mPagerAdapter.notifyDataSetChanged();
+            if (mUsersAdapter != null) mUsersAdapter.submit(null);
+            if (mCurrentUsersBand != null) mCurrentUsersBand.setText("");
+            renderDots(0, -1);
         }
     };
 
@@ -78,12 +118,27 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_channel_carousel, container, false);
+
         mPager = v.findViewById(R.id.channelCarouselPager);
-        // Outer CHANNEL↔CHAT ViewPager owns horizontal swipes; the
-        // carousel moves only via the knob (F5/F6 → switchChannel).
-        mPager.setUserInputEnabled(false);
-        mAdapter = new CarouselAdapter(this);
-        mPager.setAdapter(mAdapter);
+        mPager.setUserInputEnabled(false);  // knob-driven only, no swipe
+        mPagerAdapter = new CarouselAdapter(this);
+        mPager.setAdapter(mPagerAdapter);
+        mPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+            @Override public void onPageSelected(int position) {
+                renderDots(mChannelIds.size(), position);
+                // Update the user list to track whichever tile is centered.
+                IChannel c = channelAt(position);
+                if (c != null) updateCurrentUsers(c);
+            }
+        });
+
+        mDots = v.findViewById(R.id.channelCarouselDots);
+        mCurrentUsersBand = v.findViewById(R.id.channelCurrentUsersBand);
+        mCurrentUsersList = v.findViewById(R.id.channelCurrentUsersList);
+        mCurrentUsersList.setLayoutManager(new LinearLayoutManager(requireContext()));
+        mUsersAdapter = new UserRowAdapter();
+        mCurrentUsersList.setAdapter(mUsersAdapter);
+
         return v;
     }
 
@@ -99,12 +154,12 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
     }
 
     /**
-     * Re-snapshot root's direct children (filtering Phone/Call-*), and
-     * refresh the adapter. Preserves the current channel selection by
-     * scrolling back to the session user's channel afterwards.
+     * Re-snapshot root's direct children (filtering Phone/Call-*), refresh
+     * the pager adapter, restore the current-session-channel as the
+     * selected tile, and repopulate the users list.
      */
     private void rebuild() {
-        if (getService() == null || !getService().isConnected() || mAdapter == null) return;
+        if (getService() == null || !getService().isConnected() || mPagerAdapter == null) return;
         try {
             IHumlaSession session = getService().HumlaSession();
             IChannel root = session.getRootChannel();
@@ -126,12 +181,38 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
 
             mChannelIds.clear();
             for (IChannel c : filtered) mChannelIds.add(c.getId());
-            mAdapter.notifyDataSetChanged();
+            mPagerAdapter.notifyDataSetChanged();
 
             IChannel cur = session.getSessionChannel();
-            if (cur != null) scrollToChannelId(cur.getId(), false);
+            int curIdx = cur == null ? -1 : mChannelIds.indexOf(cur.getId());
+            if (curIdx >= 0) {
+                if (mPager.getCurrentItem() != curIdx) mPager.setCurrentItem(curIdx, false);
+                updateCurrentUsers(cur);
+            } else if (!mChannelIds.isEmpty()) {
+                IChannel first = channelAt(0);
+                if (first != null) updateCurrentUsers(first);
+            }
+            renderDots(mChannelIds.size(), mPager.getCurrentItem());
         } catch (IllegalStateException e) {
             Log.d(TAG, "rebuild failed: " + e);
+        }
+    }
+
+    /** Repopulate the user list + band for the currently-selected tile. */
+    private void refreshCurrent() {
+        IChannel c = currentChannel();
+        if (c != null) updateCurrentUsers(c);
+    }
+
+    private void updateCurrentUsers(@Nullable IChannel channel) {
+        if (channel == null) return;
+        List<? extends IUser> users = channel.getUsers();
+        int n = users == null ? 0 : users.size();
+        if (mUsersAdapter != null) mUsersAdapter.submit(users);
+        if (mCurrentUsersBand != null) {
+            String name = channel.getName() == null ? "" : channel.getName();
+            mCurrentUsersBand.setText(getString(R.string.channel_carousel_current_users_band,
+                    name.toUpperCase(), n));
         }
     }
 
@@ -156,6 +237,62 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         }
     }
 
+    @Nullable
+    private IChannel currentChannel() {
+        return channelAt(mPager == null ? -1 : mPager.getCurrentItem());
+    }
+
+    @Nullable
+    private IChannel channelAt(int position) {
+        if (position < 0 || position >= mChannelIds.size()) return null;
+        if (getService() == null || !getService().isConnected()) return null;
+        try {
+            IHumlaSession session = getService().HumlaSession();
+            if (session == null) return null;
+            return findChannelById(session.getRootChannel(), mChannelIds.get(position));
+        } catch (IllegalStateException e) {
+            return null;
+        }
+    }
+
+    private static IChannel findChannelById(IChannel node, int id) {
+        if (node == null) return null;
+        if (node.getId() == id) return node;
+        List<? extends IChannel> subs = node.getSubchannels();
+        if (subs == null) return null;
+        for (IChannel c : subs) {
+            IChannel hit = findChannelById(c, id);
+            if (hit != null) return hit;
+        }
+        return null;
+    }
+
+    /** Render the page-indicator dots for the given count + selected index. */
+    private void renderDots(int count, int selected) {
+        if (mDots == null) return;
+        mDots.removeAllViews();
+        int dotSize = dp(5);
+        int margin = dp(3);
+        for (int i = 0; i < count; i++) {
+            TextView dot = new TextView(requireContext());
+            dot.setText("\u2022"); // bullet
+            dot.setGravity(Gravity.CENTER);
+            dot.setTextSize(10f);
+            dot.setTextColor(i == selected ? 0xFFFFFFFF : 0xFF555555);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.leftMargin = margin;
+            lp.rightMargin = margin;
+            dot.setLayoutParams(lp);
+            mDots.addView(dot);
+        }
+    }
+
+    private int dp(int v) {
+        return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
     private class CarouselAdapter extends FragmentStateAdapter {
         CarouselAdapter(Fragment host) { super(host); }
 
@@ -165,10 +302,7 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
             return ChannelCardFragment.newInstance(mChannelIds.get(position));
         }
 
-        @Override
-        public int getItemCount() {
-            return mChannelIds.size();
-        }
+        @Override public int getItemCount() { return mChannelIds.size(); }
 
         @Override
         public long getItemId(int position) {

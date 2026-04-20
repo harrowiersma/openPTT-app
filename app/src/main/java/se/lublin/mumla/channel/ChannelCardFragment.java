@@ -1,8 +1,8 @@
 /*
- * A single page of the channel carousel: one channel's name + member
- * count + user list. Bound to a channel by ID via Fragment arguments;
- * the fragment looks up the IChannel on the server when the service
- * binder becomes available.
+ * A single page (tile) of the channel carousel: channel name + member
+ * count. The actual user-list for the *currently selected* channel is
+ * owned by ChannelCarouselFragment below the carousel strip, so tiles
+ * stay small and the user list absorbs whatever vertical room is left.
  */
 
 package se.lublin.mumla.channel;
@@ -16,8 +16,8 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
+
+import java.util.List;
 
 import se.lublin.humla.IHumlaService;
 import se.lublin.humla.IHumlaSession;
@@ -36,8 +36,6 @@ public class ChannelCardFragment extends HumlaServiceFragment {
     private int mChannelId = -1;
     private TextView mName;
     private TextView mMembers;
-    private RecyclerView mUsers;
-    private UserRowAdapter mAdapter;
 
     private final IHumlaObserver mObserver = new HumlaObserver() {
         @Override public void onUserJoinedChannel(IUser user, IChannel newChannel, IChannel oldChannel) {
@@ -45,17 +43,12 @@ public class ChannelCardFragment extends HumlaServiceFragment {
         }
         @Override public void onUserConnected(IUser user) { rebind(); }
         @Override public void onUserRemoved(IUser user, String reason) { rebind(); }
-        @Override public void onUserStateUpdated(IUser user) {
-            if (mAdapter != null) mAdapter.refreshUser(user);
-        }
-        @Override public void onUserTalkStateUpdated(IUser user) {
-            if (mAdapter != null) mAdapter.refreshUser(user);
-        }
         @Override public void onChannelStateUpdated(IChannel channel) {
             if (channel != null && channel.getId() == mChannelId) rebind();
         }
         @Override public void onDisconnected(HumlaException e) {
-            if (mAdapter != null) mAdapter.submit(null);
+            if (mName != null) mName.setText("");
+            if (mMembers != null) mMembers.setText("");
         }
     };
 
@@ -81,10 +74,6 @@ public class ChannelCardFragment extends HumlaServiceFragment {
         View v = inflater.inflate(R.layout.fragment_channel_card, container, false);
         mName = v.findViewById(R.id.channelCardName);
         mMembers = v.findViewById(R.id.channelCardMembers);
-        mUsers = v.findViewById(R.id.channelCardUserList);
-        mUsers.setLayoutManager(new LinearLayoutManager(requireContext()));
-        mAdapter = new UserRowAdapter();
-        mUsers.setAdapter(mAdapter);
         return v;
     }
 
@@ -99,7 +88,6 @@ public class ChannelCardFragment extends HumlaServiceFragment {
         return mObserver;
     }
 
-    /** Re-read the channel from the server binding and repopulate the view. */
     private void rebind() {
         if (getService() == null || !getService().isConnected()) return;
         try {
@@ -109,13 +97,12 @@ public class ChannelCardFragment extends HumlaServiceFragment {
             if (channel == null) {
                 if (mName != null) mName.setText("");
                 if (mMembers != null) mMembers.setText("");
-                if (mAdapter != null) mAdapter.submit(null);
                 return;
             }
             if (mName != null) mName.setText(channel.getName());
-            if (mAdapter != null) mAdapter.submit(channel.getUsers());
             if (mMembers != null) {
-                int n = channel.getUsers() == null ? 0 : channel.getUsers().size();
+                List<? extends IUser> users = channel.getUsers();
+                int n = users == null ? 0 : users.size();
                 mMembers.setText(getResources().getQuantityString(
                         R.plurals.channel_card_member_count, n, n));
             }
@@ -127,7 +114,7 @@ public class ChannelCardFragment extends HumlaServiceFragment {
     private static IChannel findChannelById(IChannel node, int id) {
         if (node == null) return null;
         if (node.getId() == id) return node;
-        java.util.List<? extends IChannel> subs = node.getSubchannels();
+        List<? extends IChannel> subs = node.getSubchannels();
         if (subs == null) return null;
         for (IChannel c : subs) {
             IChannel hit = findChannelById(c, id);
