@@ -512,9 +512,11 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
                 return true;
             }
             // Phone-call controls. Only fire while the user is in the Phone
-            // channel, otherwise these keys retain their default OS meaning.
+            // channel AND the admin has SIP enabled, otherwise these keys
+            // retain their default OS meaning.
             if (keyCode == KeyEvent.KEYCODE_CALL || keyCode == KeyEvent.KEYCODE_MENU) {
-                if ("Phone".equals(mService.currentChannelName())) {
+                if (mService.hasFeature("sip")
+                        && "Phone".equals(mService.currentChannelName())) {
                     if (keyCode == KeyEvent.KEYCODE_CALL) {
                         mService.phoneMuteToggle();
                     } else {
