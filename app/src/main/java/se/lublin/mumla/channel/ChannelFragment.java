@@ -381,8 +381,11 @@ public class ChannelFragment extends HumlaServiceFragment implements SharedPrefe
             Bundle args = new Bundle();
             switch (i) {
                 case 0:
-                    fragment = new ChannelListFragment();
-                    args.putBoolean("pinned", isShowingPinnedChannels());
+                    // Phase 4: carousel replaces the tree view on the phone
+                    // layout. One channel per page, knob-driven — Phone/Call-*
+                    // sub-channels are reached via the incoming-call overlay
+                    // (Phase 5), not from here.
+                    fragment = new ChannelCarouselFragment();
                     break;
                 case 1:
                     fragment = new ChannelChatFragment();
