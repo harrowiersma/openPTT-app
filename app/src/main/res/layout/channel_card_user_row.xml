@@ -2,8 +2,9 @@
 <!--
   ~ User row sized for the carousel on 240x320 radio screens: taller
   ~ row + larger text + light text color that reads on dark theme.
-  ~ The tablet-overlay overlay_user_row stays untouched for its own
-  ~ (small, transparent-overlay) use case.
+  ~ Right-hand "status" TextView shows the operator's current state
+  ~ (Online / PTT / Muted / Deafened) so a supervisor can tell at a
+  ~ glance who's available without relying on the icon glyph alone.
   -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -33,4 +34,15 @@
         android:singleLine="true"
         android:textColor="#EEEEEE"
         android:textSize="16sp"/>
+
+    <TextView
+        android:id="@+id/user_row_status"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:gravity="end|center_vertical"
+        android:paddingEnd="6dp"
+        android:paddingStart="4dp"
+        android:textColor="#4CAF50"
+        android:textSize="11sp"
+        android:textStyle="bold"/>
 </LinearLayout>

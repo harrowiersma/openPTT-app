@@ -80,42 +80,56 @@
 
         <TextView
             android:id="@+id/softkeyLeft"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:text="◀ Prev"
-            android:gravity="center"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:textColor="#FFC107"
-            android:textStyle="bold"
-            android:textSize="13sp"/>
-
-        <Button
-            android:id="@+id/pushtotalk"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="40dp"
-            android:text="@string/ptt"
-            android:textColor="?android:attr/textColorPrimaryInverse"
-            android:textAllCaps="true"
+            android:layout_height="match_parent"
+            android:text="◀ PREV"
+            android:gravity="start|center_vertical"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:textColor="#FFC107"
             android:textStyle="bold"
-            android:textSize="14sp"
+            android:textSize="11sp"
+            android:maxLines="2"
+            android:lineSpacingExtra="-2dp"/>
+
+        <!-- Round PTT button. cornerRadius equal to half the height turns
+             a square MaterialButton into a circle; we size 56x56dp with
+             only the mic icon inside (no text label — a radio operator
+             reads the transmit state from the color, not a word). -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pushtotalk"
+            style="@style/Widget.MaterialComponents.Button"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            android:contentDescription="@string/ptt"
             app:backgroundTint="@drawable/ptt_button_tint"
-            app:cornerRadius="0dp"
+            app:cornerRadius="28dp"
+            app:icon="@drawable/ic_action_microphone"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="28dp"
+            app:iconTint="#FFFFFF"
             android:insetTop="0dp"
-            android:insetBottom="0dp" />
+            android:insetBottom="0dp"
+            android:padding="0dp" />
 
         <TextView
             android:id="@+id/softkeyRight"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="match_parent"
-            android:text="Next ▶"
-            android:gravity="center"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
+            android:text="NEXT ▶"
+            android:gravity="end|center_vertical"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
             android:textColor="#FFC107"
             android:textStyle="bold"
-            android:textSize="13sp"/>
+            android:textSize="11sp"
+            android:maxLines="2"
+            android:lineSpacingExtra="-2dp"/>
     </LinearLayout>
 
 </LinearLayout>

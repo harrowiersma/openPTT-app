@@ -65,20 +65,44 @@ public class UserRowAdapter extends RecyclerView.Adapter<UserRowAdapter.VH> {
     public void onBindViewHolder(@NonNull VH h, int position) {
         IUser u = mUsers.get(position);
         h.name.setText(u.getName());
+
+        // Pick the tightest-applicable status, matching the legacy glyph
+        // priority: self-states first (user asked for it), then server-
+        // applied states, then talk-state.
+        String status;
+        int statusColor;
         if (u.isSelfDeafened()) {
             h.state.setImageResource(R.drawable.outline_circle_deafened);
+            status = "DEAF";
+            statusColor = 0xFFE53935;
         } else if (u.isSelfMuted()) {
             h.state.setImageResource(R.drawable.outline_circle_muted);
+            status = "MUTED";
+            statusColor = 0xFFE53935;
         } else if (u.isDeafened()) {
             h.state.setImageResource(R.drawable.outline_circle_server_deafened);
+            status = "SVR DEAF";
+            statusColor = 0xFF0099CC;
         } else if (u.isMuted()) {
             h.state.setImageResource(R.drawable.outline_circle_server_muted);
+            status = "SVR MUTED";
+            statusColor = 0xFF0099CC;
         } else if (u.isSuppressed()) {
             h.state.setImageResource(R.drawable.outline_circle_suppressed);
+            status = "SUPPRESSED";
+            statusColor = 0xFF666666;
         } else if (u.getTalkState() == TalkState.TALKING) {
             h.state.setImageResource(R.drawable.outline_circle_talking_on);
+            status = "PTT";
+            statusColor = 0xFF00C853;
         } else {
             h.state.setImageResource(R.drawable.outline_circle_talking_off);
+            status = "ONLINE";
+            statusColor = 0xFF4CAF50;
+        }
+        if (h.status != null) {
+            h.status.setText(status);
+            h.status.setTextColor(statusColor);
         }
     }
 
@@ -90,11 +114,13 @@ public class UserRowAdapter extends RecyclerView.Adapter<UserRowAdapter.VH> {
     static class VH extends RecyclerView.ViewHolder {
         final ImageView state;
         final TextView name;
+        final TextView status;
 
         VH(@NonNull View v) {
             super(v);
             state = v.findViewById(R.id.user_row_state);
             name = v.findViewById(R.id.user_row_name);
+            status = v.findViewById(R.id.user_row_status);
         }
     }
 }

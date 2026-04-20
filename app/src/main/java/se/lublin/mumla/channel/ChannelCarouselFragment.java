@@ -123,6 +123,17 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         mPager.setUserInputEnabled(false);  // knob-driven only, no swipe
         mPagerAdapter = new CarouselAdapter(this);
         mPager.setAdapter(mPagerAdapter);
+        // Peek-view: show a sliver of the previous and next channel
+        // tiles on either side of the current one so the operator knows
+        // there's more without having to press a key to find out. The
+        // inner RecyclerView owns padding + clip behavior on ViewPager2.
+        if (mPager.getChildAt(0) instanceof RecyclerView) {
+            RecyclerView inner = (RecyclerView) mPager.getChildAt(0);
+            int peek = dp(36);
+            inner.setPadding(peek, 0, peek, 0);
+            inner.setClipToPadding(false);
+        }
+        mPager.setOffscreenPageLimit(1);
         mPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override public void onPageSelected(int position) {
                 renderDots(mChannelIds.size(), position);
