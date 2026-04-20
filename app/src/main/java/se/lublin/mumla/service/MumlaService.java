@@ -371,11 +371,15 @@ public class MumlaService extends HumlaService implements
                 return START_NOT_STICKY;
             } else if (ACTION_SHIFT_KEY_DOWN.equals(action)) {
                 Log.i(TAG, "SHIFT_KEY_DOWN received via intent");
-                shiftController().onKeyDown();
+                if (hasFeature("lone_worker")) {
+                    shiftController().onKeyDown();
+                }
                 return START_NOT_STICKY;
             } else if (ACTION_SHIFT_KEY_UP.equals(action)) {
                 Log.i(TAG, "SHIFT_KEY_UP received via intent");
-                shiftController().onKeyUp(currentMumbleUsername());
+                if (hasFeature("lone_worker")) {
+                    shiftController().onKeyUp(currentMumbleUsername());
+                }
                 return START_NOT_STICKY;
             }
         }
@@ -917,6 +921,13 @@ public class MumlaService extends HumlaService implements
     }
 
     private void detectTripleTap() {
+        // Gate 0: Admin feature flag. Overrides every per-device setting —
+        // if the operator has turned lone-worker off fleet-wide, the
+        // gesture must not fire even on devices where the user has
+        // enabled the local toggle.
+        if (!hasFeature("lone_worker")) {
+            return;
+        }
         // Gate 1: Lone-worker mode must be explicitly enabled. Users who
         // never run shifts (e.g. dispatchers, phone operators) should
         // never accidentally start one with fast PTT taps.
