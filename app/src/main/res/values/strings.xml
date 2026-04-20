@@ -243,6 +243,10 @@
     <string name="notificationSounds">Notification sounds</string>
     <string name="notificationSoundsSum">Play sounds on connect and channel change</string>
     <string name="channel_switched">Channel: %s</string>
+    <plurals name="channel_card_member_count">
+        <item quantity="one">%d user</item>
+        <item quantity="other">%d users</item>
+    </plurals>
     <string name="defaultChannel">Default channel</string>
     <string name="defaultChannelSum">Auto-join this channel on connect</string>
     <string name="autoConnect">Auto-connect on start</string>
