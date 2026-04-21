@@ -298,15 +298,19 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
     }
 
     /**
-     * Defensive filter for Phone/Call-* sub-channels. They should never
-     * be direct children of Root (they're parented to Phone), but if the
-     * Murmur tree is ever reorganized a stray Call-N at root level must
-     * still be skipped — it's reached only via the incoming-call overlay.
+     * Skip channels that have no human carousel-value:
+     * - Phone/Call-* sub-channels (reached only via the incoming-call overlay).
+     * - The Phone parent itself: incoming calls land in Phone/Call-N and the
+     *   overlay moves the user there directly; manually parking in Phone
+     *   does nothing useful and the Phone ACL bounces non-eligible users
+     *   straight back out.
      */
     private static boolean shouldSurface(IChannel c) {
         if (c == null) return false;
         String name = c.getName() == null ? "" : c.getName();
-        return !name.startsWith("Call-");
+        if (name.startsWith("Call-")) return false;
+        if ("Phone".equals(name)) return false;
+        return true;
     }
 
     private void scrollToChannelId(int channelId, boolean smooth) {
