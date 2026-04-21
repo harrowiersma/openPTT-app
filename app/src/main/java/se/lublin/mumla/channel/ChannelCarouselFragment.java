@@ -297,16 +297,10 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         }
     }
 
-    /**
-     * Defensive filter for Phone/Call-* sub-channels. They should never
-     * be direct children of Root (they're parented to Phone), but if the
-     * Murmur tree is ever reorganized a stray Call-N at root level must
-     * still be skipped — it's reached only via the incoming-call overlay.
-     */
+    /** Delegates to {@link HumanChannels#isVisible} so knob navigation and
+     *  the carousel render the exact same set. */
     private static boolean shouldSurface(IChannel c) {
-        if (c == null) return false;
-        String name = c.getName() == null ? "" : c.getName();
-        return !name.startsWith("Call-");
+        return HumanChannels.isVisible(c);
     }
 
     private void scrollToChannelId(int channelId, boolean smooth) {

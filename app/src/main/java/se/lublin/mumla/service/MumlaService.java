@@ -1240,8 +1240,7 @@ public class MumlaService extends HumlaService implements
             if (raw == null || raw.isEmpty()) return;
             java.util.List<IChannel> channels = new java.util.ArrayList<>();
             for (IChannel c : raw) {
-                String nm = c.getName() == null ? "" : c.getName();
-                if (!nm.startsWith("Call-")) channels.add(c);
+                if (se.lublin.mumla.channel.HumanChannels.isVisible(c)) channels.add(c);
             }
             java.util.Collections.sort(channels, new java.util.Comparator<IChannel>() {
                 @Override public int compare(IChannel a, IChannel b) {
