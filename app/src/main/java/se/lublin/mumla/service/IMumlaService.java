@@ -50,4 +50,21 @@ public interface IMumlaService extends IHumlaService {
      *            "weather", "sos"
      */
     boolean hasFeature(String key);
+
+    /** Last presence label confirmed by /api/users/status this session. */
+    String getCurrentStatus();
+
+    /** Last audibility flag confirmed by /api/users/status this session. */
+    Boolean getCurrentAudible();
+
+    /** Compute current audibility from AudioManager (RINGER_MODE_NORMAL
+     *  AND voice-call stream volume > 0). */
+    boolean computeAudible();
+
+    /** POST /api/users/status with label and/or audibility. Best-effort,
+     *  fires on a background thread. Callbacks run on worker thread. */
+    void postStatus(String label, Boolean isAudible, Runnable onSuccess, Runnable onError);
+
+    /** Public TTS passthrough so UI callers can confirm status changes. */
+    void speakNow(String text);
 }

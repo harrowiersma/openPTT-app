@@ -486,6 +486,28 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
         return name != null && name.startsWith("Call-");
     }
 
+    /** Cycle presence: Online → Busy → Offline → Online. Called on orange
+     *  top button (KEYCODE_F4). Pairs with Task 10's carousel status pill. */
+    private void cycleStatus() {
+        if (mService == null) return;
+        final String cur = mService.getCurrentStatus();
+        final String next;
+        if ("online".equals(cur)) next = "busy";
+        else if ("busy".equals(cur)) next = "offline";
+        else next = "online";  // null or 'offline' → online
+
+        final String ttsOk = Character.toUpperCase(next.charAt(0)) + next.substring(1);
+        mService.postStatus(
+            next,
+            mService.computeAudible(),
+            /* onSuccess */ () -> runOnUiThread(() -> {
+                mService.speakNow(ttsOk);
+                // TODO(task10): refresh carousel status pill
+            }),
+            /* onError */ () -> runOnUiThread(() -> mService.speakNow("Status change failed"))
+        );
+    }
+
     /**
      * Intercept key events BEFORE views consume them.
      * This is critical for PTT: DPAD_DOWN would otherwise be eaten by ListView navigation.
@@ -499,6 +521,20 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
+        // Orange top button (P50): emits KEYCODE_F2 (scan 60) + KEYCODE_F4
+        // (scan 62) together per physical press. ROM's lone-worker handler
+        // passes both to dispatchKeyEvent as Unhandled Keys when its own
+        // mode is disabled (the default on these radios). We act on F4,
+        // silently swallow F2 to prevent double-firing.
+        if (keyCode == KeyEvent.KEYCODE_F4) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                cycleStatus();
+            }
+            return true;  // consume both DOWN and UP
+        }
+        if (keyCode == KeyEvent.KEYCODE_F2) {
+            return true;  // swallow paired press, no action
+        }
         // PTT key (configured key or Hytera hardware PTT)
         if (mService != null &&
                 (keyCode == mSettings.getPushToTalkKey() || keyCode == KEYCODE_HYTERA_PTT)) {

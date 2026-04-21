@@ -387,6 +387,15 @@ public class MumlaService extends HumlaService implements
      *  them stranded in the empty Phone/Call-N. -1 = nothing to restore. */
     private int mPreCallChannelId = -1;
 
+    /** Last presence label posted by this device (online/busy/offline).
+     *  Null until the orange-button cycle has round-tripped successfully
+     *  once. Read by MumlaActivity.cycleStatus() to compute the next
+     *  state. Written only on a successful POST /api/users/status. */
+    private volatile String mCurrentStatus = null;
+    /** Last audibility flag posted. Mirrors server state so the carousel
+     *  pill can render the muted icon without re-querying. */
+    private volatile Boolean mCurrentAudible = null;
+
     private ShiftController mShiftController;
 
     /** Feature-flag cache mirrored from /api/status/capabilities. */
@@ -723,6 +732,88 @@ public class MumlaService extends HumlaService implements
         if (mTTS != null && mTTSReady && mSettings.isTextToSpeechEnabled()) {
             mTTS.speak(text, TextToSpeech.QUEUE_FLUSH, null, "phone_ctrl");
         }
+    }
+
+    /** Public TTS entry point for UI callers (e.g. MumlaActivity). Respects
+     *  the same gates as the private `speak()`. Added for Task 9 (orange-
+     *  button status cycle) so the activity can confirm the new label. */
+    public void speakNow(String text) {
+        speak(text);
+    }
+
+    /** Current presence label as last confirmed by /api/users/status, or
+     *  null if nothing has been posted yet this session. */
+    public String getCurrentStatus() { return mCurrentStatus; }
+
+    /** Current audibility flag as last confirmed by /api/users/status, or
+     *  null if nothing has been posted yet this session. */
+    public Boolean getCurrentAudible() { return mCurrentAudible; }
+
+    /** Allow external setters (e.g. a server-push sync) to override the
+     *  cached presence without going through postStatus. */
+    public void setCurrentStatus(String s) { mCurrentStatus = s; }
+
+    /** True when ringer is NORMAL and voice-call stream volume > 0.
+     *  Silent + vibrate both count as not-audible. Used by the status POST
+     *  so the dashboard can show a muted icon next to the user's pill. */
+    public boolean computeAudible() {
+        android.media.AudioManager am =
+            (android.media.AudioManager) getSystemService(android.content.Context.AUDIO_SERVICE);
+        if (am == null) return true;  // conservative default
+        return am.getRingerMode() == android.media.AudioManager.RINGER_MODE_NORMAL
+            && am.getStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL) > 0;
+    }
+
+    /** POST /api/users/status. Pass null for a field you don't want to change.
+     *  At least one of label / isAudible must be non-null. Best-effort; runs on
+     *  a worker thread. onSuccess/onError fire on that worker thread — UI
+     *  callers must runOnUiThread() themselves. */
+    public void postStatus(final String label, final Boolean isAudible,
+                           final Runnable onSuccess, final Runnable onError) {
+        final String adminUrl = mSettings.getAdminUrl();
+        final String username = currentMumbleUsername();
+        if (adminUrl == null || adminUrl.isEmpty() || username == null
+                || (label == null && isAudible == null)) {
+            if (onError != null) onError.run();
+            return;
+        }
+        new Thread(() -> {
+            java.net.HttpURLConnection conn = null;
+            try {
+                conn = (java.net.HttpURLConnection) new java.net.URL(
+                        adminUrl + "/api/users/status").openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(4000);
+                conn.setReadTimeout(6000);
+                StringBuilder sb = new StringBuilder();
+                sb.append("{\"username\":\"")
+                  .append(username.replace("\"", "\\\""))
+                  .append("\"");
+                if (label != null) sb.append(",\"label\":\"").append(label).append("\"");
+                if (isAudible != null) sb.append(",\"is_audible\":").append(isAudible);
+                sb.append("}");
+                try (java.io.OutputStream os = conn.getOutputStream()) {
+                    os.write(sb.toString().getBytes("UTF-8"));
+                }
+                int code = conn.getResponseCode();
+                Log.i(TAG, "postStatus label=" + label + " is_audible=" + isAudible
+                        + " → " + code);
+                if (code >= 200 && code < 300) {
+                    if (label != null) mCurrentStatus = label;
+                    if (isAudible != null) mCurrentAudible = isAudible;
+                    if (onSuccess != null) onSuccess.run();
+                } else if (onError != null) {
+                    onError.run();
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "postStatus failed: " + e);
+                if (onError != null) onError.run();
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }, "postStatus").start();
     }
 
     @Override
