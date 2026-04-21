@@ -59,6 +59,7 @@ import se.lublin.humla.util.HumlaObserver;
 import se.lublin.mumla.R;
 import se.lublin.mumla.Settings;
 import se.lublin.mumla.admin.CapabilitiesClient;
+import se.lublin.mumla.phone.ActiveCallActivity;
 import se.lublin.mumla.phone.IncomingCallActivity;
 import se.lublin.mumla.phone.IncomingCallParser;
 import se.lublin.mumla.service.ipc.TalkBroadcastReceiver;
@@ -177,6 +178,16 @@ public class MumlaService extends HumlaService implements
                 String channelName = newChannel != null ? newChannel.getName() : null;
                 boolean deafened = getSessionUser() != null
                         && getSessionUser().isSelfDeafened();
+
+                // Note: ActiveCallActivity is launched directly from
+                // IncomingCallActivity (Activity→Activity), not from
+                // here — Android 10+ blocks service-initiated
+                // background-activity starts so this observer cannot
+                // reliably raise a full-screen UI. We still clear the
+                // stashed caller-id when leaving Call-*.
+                if (channelName != null && !channelName.startsWith("Call-")) {
+                    mActiveCallerId = null;
+                }
 
                 if (mSettings.isTextToSpeechEnabled() && mTTS != null && mTTSReady
                         && channelName != null && !deafened) {
@@ -363,6 +374,18 @@ public class MumlaService extends HumlaService implements
     public static final String ACTION_MOVE_TO_CHANNEL = "se.lublin.mumla.MOVE_TO_CHANNEL";
     public static final String EXTRA_CHANNEL_NAME = "channel_name";
     public static final String EXTRA_PARENT_NAME = "parent_name";
+    /** Caller id passed through from the incoming-call overlay so the
+     *  follow-on active-call screen can keep displaying it. */
+    public static final String EXTRA_CALLER_ID = "caller_id";
+    /** Last caller_id the operator answered. Set when ACTION_MOVE_TO_CHANNEL
+     *  fires, cleared when the session leaves Phone/Call-*. Read by
+     *  onUserJoinedChannel to launch ActiveCallActivity with the right
+     *  caller context. Null when no call is active. */
+    private String mActiveCallerId;
+    /** Channel the session user was in right before answering a call,
+     *  so we can restore them there after hangup instead of leaving
+     *  them stranded in the empty Phone/Call-N. -1 = nothing to restore. */
+    private int mPreCallChannelId = -1;
 
     private ShiftController mShiftController;
 
@@ -410,7 +433,13 @@ public class MumlaService extends HumlaService implements
             } else if (ACTION_MOVE_TO_CHANNEL.equals(action)) {
                 String name = intent.getStringExtra(EXTRA_CHANNEL_NAME);
                 String parentName = intent.getStringExtra(EXTRA_PARENT_NAME);
-                Log.i(TAG, "MOVE_TO_CHANNEL: " + parentName + "/" + name);
+                String callerId = intent.getStringExtra(EXTRA_CALLER_ID);
+                Log.i(TAG, "MOVE_TO_CHANNEL: " + parentName + "/" + name
+                        + " caller=" + callerId);
+                // Stash before the join so when onUserJoinedChannel
+                // fires the active-call launcher already has the caller
+                // id to pass through.
+                mActiveCallerId = callerId;
                 moveSessionToNamedChannel(parentName, name);
                 return START_NOT_STICKY;
             }
@@ -516,23 +545,90 @@ public class MumlaService extends HumlaService implements
      *  IChannel and ask Humla to join it. Called by
      *  IncomingCallActivity when the operator taps Answer. */
     private void moveSessionToNamedChannel(String parentName, String childName) {
-        if (childName == null || childName.isEmpty()) return;
+        Log.i(TAG, "moveSessionToNamedChannel START parent=" + parentName
+                + " child=" + childName);
+        if (childName == null || childName.isEmpty()) {
+            Log.w(TAG, "moveSessionToNamedChannel: empty childName; abort");
+            return;
+        }
+        try {
+            if (!isConnectionEstablished()) {
+                Log.w(TAG, "moveSessionToNamedChannel: not connected; abort");
+                return;
+            }
+            se.lublin.humla.IHumlaSession session = HumlaSession();
+            if (session == null) {
+                Log.w(TAG, "moveSessionToNamedChannel: null HumlaSession; abort");
+                return;
+            }
+            se.lublin.humla.model.IChannel root = session.getRootChannel();
+            if (root == null) {
+                Log.w(TAG, "moveSessionToNamedChannel: null root channel; abort");
+                return;
+            }
+            logChannelTree(root, 0);
+            se.lublin.humla.model.IChannel target =
+                    findChildByName(root, parentName, childName);
+            if (target == null) {
+                Log.w(TAG, "moveSessionToNamedChannel: no tree match for "
+                        + parentName + "/" + childName);
+                return;
+            }
+            // Remember where we were so restorePreCallChannel() can
+            // bring the operator back after hangup — otherwise the
+            // session is left stranded in the empty Call-N sub-channel.
+            try {
+                se.lublin.humla.model.IChannel cur = session.getSessionChannel();
+                if (cur != null && cur.getId() != target.getId()) {
+                    mPreCallChannelId = cur.getId();
+                    Log.i(TAG, "stashed pre-call channel id=" + mPreCallChannelId);
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "could not stash pre-call channel: " + e);
+            }
+            Log.i(TAG, "moveSessionToNamedChannel: calling joinChannel(" + target.getId() + ")");
+            session.joinChannel(target.getId());
+            Log.i(TAG, "moveSessionToNamedChannel: joinChannel returned for "
+                    + parentName + "/" + childName + " (id=" + target.getId() + ")");
+        } catch (Exception e) {
+            Log.w(TAG, "moveSessionToNamedChannel EXCEPTION: " + e, e);
+        }
+    }
+
+    /** Move the session user back to whatever channel they were in
+     *  before answering. Called by ActiveCallActivity on hangup so the
+     *  operator isn't left sitting in the now-empty Phone/Call-N. No-op
+     *  if we never stashed one (e.g. answered twice in a row, or the
+     *  service started mid-call). */
+    public void restorePreCallChannel() {
+        int target = mPreCallChannelId;
+        if (target < 0) return;
+        mPreCallChannelId = -1;
         try {
             if (!isConnectionEstablished()) return;
             se.lublin.humla.IHumlaSession session = HumlaSession();
             if (session == null) return;
-            se.lublin.humla.model.IChannel target =
-                    findChildByName(session.getRootChannel(), parentName, childName);
-            if (target == null) {
-                Log.w(TAG, "move-to-channel: no match for "
-                        + parentName + "/" + childName);
-                return;
-            }
-            session.joinChannel(target.getId());
-            Log.i(TAG, "moved session to " + parentName + "/" + childName
-                    + " (id=" + target.getId() + ")");
+            Log.i(TAG, "restorePreCallChannel: joinChannel(" + target + ")");
+            session.joinChannel(target);
         } catch (Exception e) {
-            Log.w(TAG, "moveSessionToNamedChannel failed: " + e);
+            Log.w(TAG, "restorePreCallChannel failed: " + e);
+        }
+    }
+
+    /** Diagnostic — walk the channel tree and log each node with depth
+     *  so we can see on-device whether Phone/Call-N actually made it
+     *  into the client's view of the tree at the moment of Answer. */
+    private static void logChannelTree(se.lublin.humla.model.IChannel node, int depth) {
+        if (node == null) return;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < depth; i++) sb.append("  ");
+        sb.append("[").append(node.getId()).append("] ");
+        sb.append(node.getName());
+        Log.i(TAG, "channel-tree: " + sb);
+        java.util.List<? extends se.lublin.humla.model.IChannel> subs = node.getSubchannels();
+        if (subs == null) return;
+        for (se.lublin.humla.model.IChannel c : subs) {
+            logChannelTree(c, depth + 1);
         }
     }
 

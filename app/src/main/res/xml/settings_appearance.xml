@@ -54,6 +54,16 @@
         android:text=" dp"
         app:iconSpaceReserved="false" />
 
+    <ListPreference
+        android:key="incoming_ring_volume"
+        android:defaultValue="50"
+        android:entries="@array/incomingRingVolumeNames"
+        android:entryValues="@array/incomingRingVolumeValues"
+        android:title="@string/incoming_ring_volume"
+        android:summary="@string/incoming_ring_volume_sum"
+        app:useSimpleSummaryProvider="true"
+        app:iconSpaceReserved="false" />
+
     <!--
     <ListPreference
         android:defaultValue="35"

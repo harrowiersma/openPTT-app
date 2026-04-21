@@ -99,6 +99,13 @@ public class Settings {
     public static final String PREF_PTT_BUTTON_HEIGHT = "pttButtonHeight";
     public static final int DEFAULT_PTT_BUTTON_HEIGHT = 40;
 
+    /** Incoming-call ringer volume, stored as a percentage string so
+     *  it plugs into a ListPreference. Applied to the Ringtone in
+     *  IncomingCallActivity via setVolume(). Default 50 — full volume
+     *  is painfully loud on a radio held close to the ear. */
+    public static final String PREF_INCOMING_RING_VOLUME = "incoming_ring_volume";
+    public static final String DEFAULT_INCOMING_RING_VOLUME = "50";
+
     /**
      * The DB identifier for the default certificate.
      * @see se.lublin.mumla.db.DatabaseCertificate
@@ -292,6 +299,23 @@ public class Settings {
     /* @return the height of PTT button */
     public int getPTTButtonHeight() {
         return preferences.getInt(Settings.PREF_PTT_BUTTON_HEIGHT, DEFAULT_PTT_BUTTON_HEIGHT);
+    }
+
+    /** Return incoming-call ringer volume as a float 0.0..1.0 suitable
+     *  for Ringtone.setVolume(). Clamped defensively so garbled
+     *  preference values can't blow out the speaker. */
+    public float getIncomingRingVolume() {
+        String raw = preferences.getString(
+                PREF_INCOMING_RING_VOLUME, DEFAULT_INCOMING_RING_VOLUME);
+        int pct;
+        try {
+            pct = Integer.parseInt(raw);
+        } catch (NumberFormatException e) {
+            pct = 50;
+        }
+        if (pct < 0) pct = 0;
+        if (pct > 100) pct = 100;
+        return pct / 100f;
     }
 
     /**

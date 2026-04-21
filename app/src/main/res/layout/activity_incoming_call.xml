@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ~ Full-screen incoming-call overlay. Tuned for the 240x320 P50:
-  ~ one big caller-id line, two chunky buttons below. Answer pipes
-  ~ the user into Phone/Call-<slot>; Decline just dismisses.
+  ~ Full-screen incoming-call overlay. The P50 has no touchscreen, so
+  ~ Answer and Decline are driven by hardware keys (CALL = Answer,
+  ~ BACK = Decline). The on-screen "buttons" are really labeled
+  ~ key-hint pills telling the operator which hardware key to press;
+  ~ we still register click listeners so a touchscreen-capable device
+  ~ (tablet, emulator) can use the same UI.
   -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -11,13 +14,13 @@
     android:orientation="vertical"
     android:gravity="center_horizontal"
     android:background="#0A0A0A"
-    android:padding="12dp">
+    android:padding="10dp">
 
     <TextView
         android:id="@+id/incomingCallHeader"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:text="INCOMING CALL"
         android:textSize="12sp"
         android:textStyle="bold"
@@ -27,8 +30,8 @@
     <TextView
         android:id="@+id/incomingCallCallerId"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
         android:gravity="center"
         android:textSize="22sp"
         android:textStyle="bold"
@@ -44,40 +47,51 @@
         android:layout_height="wrap_content"
         android:textSize="11sp"
         android:textColor="#BBBBBB"
-        android:paddingBottom="12dp"/>
+        android:paddingBottom="8dp"/>
 
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <!-- Hardware-key hints. Answer (green) on LEFT / Decline (red) on
+         RIGHT — matches the P50 hardware key layout (green phone
+         button is on the left edge of the device, red on the right),
+         so a user's eye-to-finger mapping stays consistent. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="8dp">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/incomingCallDecline"
+            android:id="@+id/incomingCallAnswer"
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="54dp"
             android:layout_weight="1"
             android:layout_marginEnd="6dp"
-            android:text="DECLINE"
+            android:text="ANSWER\nCALL key"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
-            android:textSize="13sp"
-            app:backgroundTint="#B71C1C"
+            android:textSize="11sp"
+            android:lineSpacingExtra="1dp"
+            app:backgroundTint="#00C853"
             app:cornerRadius="10dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"/>
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/incomingCallAnswer"
+            android:id="@+id/incomingCallDecline"
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="54dp"
             android:layout_weight="1"
             android:layout_marginStart="6dp"
-            android:text="ANSWER"
+            android:text="DECLINE\nBACK key"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
-            android:textSize="13sp"
-            app:backgroundTint="#00C853"
+            android:textSize="11sp"
+            android:lineSpacingExtra="1dp"
+            app:backgroundTint="#B71C1C"
             app:cornerRadius="10dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"/>

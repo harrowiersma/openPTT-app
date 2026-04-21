@@ -541,12 +541,15 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
                 mService.switchChannel(1);
                 return true;
             }
-            // Phone-call controls. Only fire while the user is in the Phone
-            // channel AND the admin has SIP enabled, otherwise these keys
-            // retain their default OS meaning.
+            // Phone-call controls. Fire while the user is either in the
+            // Phone parent channel (waiting lounge) or any Phone/Call-*
+            // sub-channel (active call). MENU hangs up the live call
+            // from either state; CALL toggles caller-mute.
             if (keyCode == KeyEvent.KEYCODE_CALL || keyCode == KeyEvent.KEYCODE_MENU) {
-                if (mService.hasFeature("sip")
-                        && "Phone".equals(mService.currentChannelName())) {
+                String chan = mService.currentChannelName();
+                boolean inPhoneTree = chan != null
+                        && ("Phone".equals(chan) || chan.startsWith("Call-"));
+                if (mService.hasFeature("sip") && inPhoneTree) {
                     if (keyCode == KeyEvent.KEYCODE_CALL) {
                         mService.phoneMuteToggle();
                     } else {

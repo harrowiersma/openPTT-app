@@ -21,6 +21,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.WindowManager;
 import android.widget.TextView;
 
@@ -73,13 +74,29 @@ public class IncomingCallActivity extends AppCompatActivity {
     }
 
     private void onAnswer() {
-        // Hand off to the service — it owns the Humla session and can
-        // resolve "Call-N under Phone" into a channel id for joinChannel.
+        Log.i(TAG, "Answer tapped — sub=" + mSubChannel + " caller=" + mCallerId);
+        // Tell the service to move the session into Phone/Call-N.
         Intent svc = new Intent(this, MumlaService.class);
         svc.setAction(MumlaService.ACTION_MOVE_TO_CHANNEL);
         svc.putExtra(MumlaService.EXTRA_CHANNEL_NAME, mSubChannel);
         svc.putExtra(MumlaService.EXTRA_PARENT_NAME, "Phone");
-        startService(svc);
+        svc.putExtra(MumlaService.EXTRA_CALLER_ID, mCallerId);
+        try {
+            android.content.ComponentName result = startService(svc);
+            Log.i(TAG, "Answer: startService returned " + result);
+        } catch (Exception e) {
+            Log.w(TAG, "Answer: startService threw " + e, e);
+        }
+        // Launch the active-call overlay here (Activity→Activity is
+        // always allowed), not from the service's onUserJoinedChannel —
+        // Android 10+ blocks background-start attempts from services
+        // so the server-ack callback can't do it reliably. ActiveCall
+        // starts "connecting" and its own observer transitions to the
+        // live state when Murmur confirms the join.
+        Intent call = new Intent(this, ActiveCallActivity.class);
+        call.putExtra(ActiveCallActivity.EXTRA_CALLER_ID, mCallerId);
+        call.putExtra(ActiveCallActivity.EXTRA_SUB_CHANNEL, mSubChannel);
+        startActivity(call);
         finish();
     }
 
@@ -88,10 +105,68 @@ public class IncomingCallActivity extends AppCompatActivity {
             Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
             if (uri == null) return;
             mRingtone = RingtoneManager.getRingtone(this, uri);
-            if (mRingtone != null) mRingtone.play();
+            if (mRingtone == null) return;
+            // Apply the user-configurable ring volume (Settings →
+            // Appearance → Ring volume). Ringtone.setVolume requires
+            // API 28+; the P50 is well past that.
+            try {
+                float v = se.lublin.mumla.Settings.getInstance(this)
+                        .getIncomingRingVolume();
+                mRingtone.setVolume(v);
+            } catch (Throwable ignored) { /* older API, fall back to default */ }
+            mRingtone.play();
         } catch (Exception e) {
             Log.w(TAG, "ringtone start failed: " + e);
         }
+    }
+
+    /**
+     * Hardware-key routing. The P50 is touchscreen-less, so the overlay
+     * has to be driven by physical buttons — otherwise the operator
+     * sees the ring and has no way to answer:
+     *
+     *   KEYCODE_CALL (green phone button)            → Answer
+     *   KEYCODE_DPAD_CENTER / ENTER (OK / D-pad OK)  → Answer (fallback)
+     *   KEYCODE_BACK                                 → Decline (via
+     *       default Activity finish, but we intercept so the click
+     *       hint text on the red button stays accurate if Android
+     *       adds back-gesture handling later)
+     *   KEYCODE_MENU                                 → Decline
+     *
+     * We consume the event (return true) so KEYCODE_CALL doesn't
+     * bubble up to the system dialer while the overlay is foreground.
+     */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_MENU:
+                if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                    Log.i(TAG, "hardware MENU → Decline");
+                    finish();
+                }
+                return true;
+            case KeyEvent.KEYCODE_BACK:
+                if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                    Log.i(TAG, "hardware BACK → Decline");
+                    finish();
+                }
+                return true;
+            case KeyEvent.KEYCODE_CALL:
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+                if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                    Log.i(TAG, "hardware key → Answer (keyCode=" + keyCode + ")");
+                    onAnswer();
+                }
+                return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean onMenuOpened(int featureId, android.view.Menu menu) {
+        return false;
     }
 
     @Override
