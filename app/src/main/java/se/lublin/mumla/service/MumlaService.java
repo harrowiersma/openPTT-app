@@ -436,11 +436,18 @@ public class MumlaService extends HumlaService implements
                 String callerId = intent.getStringExtra(EXTRA_CALLER_ID);
                 Log.i(TAG, "MOVE_TO_CHANNEL: " + parentName + "/" + name
                         + " caller=" + callerId);
-                // Stash before the join so when onUserJoinedChannel
-                // fires the active-call launcher already has the caller
-                // id to pass through.
                 mActiveCallerId = callerId;
                 moveSessionToNamedChannel(parentName, name);
+                // Log the answerer to the admin call log. Best-effort —
+                // if the POST fails the call still proceeds; the log row
+                // just lacks answered_by. Fire-and-forget on a thread.
+                if (name != null && name.startsWith("Call-")) {
+                    try {
+                        int slot = Integer.parseInt(name.substring("Call-".length()));
+                        String username = currentMumbleUsername();
+                        if (username != null) reportAnswered(slot, username);
+                    } catch (NumberFormatException ignored) { }
+                }
                 return START_NOT_STICKY;
             }
         }
@@ -516,6 +523,36 @@ public class MumlaService extends HumlaService implements
         if (username == null) return;
         speak(getString(R.string.phone_hung_up_tts));
         new Thread(() -> _postPhoneControl(adminUrl + "/api/sip/hangup-current", username)).start();
+    }
+
+    /** POST /api/sip/answered so the admin call log records which
+     *  operator picked up this slot. Best-effort, fire-and-forget. */
+    private void reportAnswered(int slot, String username) {
+        String adminUrl = mSettings.getAdminUrl();
+        if (adminUrl == null || adminUrl.isEmpty()) return;
+        final String url = adminUrl + "/api/sip/answered";
+        final String body = "{\"slot\":" + slot
+                + ",\"username\":\"" + username.replace("\"", "\\\"") + "\"}";
+        new Thread(() -> {
+            java.net.HttpURLConnection conn = null;
+            try {
+                conn = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(4000);
+                conn.setReadTimeout(4000);
+                try (java.io.OutputStream os = conn.getOutputStream()) {
+                    os.write(body.getBytes("UTF-8"));
+                }
+                int code = conn.getResponseCode();
+                Log.i(TAG, "sip/answered slot=" + slot + " user=" + username + " → " + code);
+            } catch (Exception e) {
+                Log.w(TAG, "sip/answered post failed: " + e);
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }, "sip-answered").start();
     }
 
     private void _postPhoneControl(String url, String username) {
