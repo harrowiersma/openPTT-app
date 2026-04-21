@@ -65,6 +65,12 @@ public interface IMumlaService extends IHumlaService {
      *  fires on a background thread. Callbacks run on worker thread. */
     void postStatus(String label, Boolean isAudible, Runnable onSuccess, Runnable onError);
 
+    /** GET /api/users/status for the current Mumble user — populates the
+     *  cached label + audibility. onDone runs on the worker thread once
+     *  the request finishes (success or failure). UI callers must hop
+     *  to the main thread themselves. */
+    void fetchStatus(Runnable onDone);
+
     /** Public TTS passthrough so UI callers can confirm status changes. */
     void speakNow(String text);
 }

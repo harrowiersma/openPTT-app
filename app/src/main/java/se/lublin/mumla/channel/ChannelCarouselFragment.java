@@ -33,6 +33,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -159,13 +160,74 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         mUsersAdapter = new UserRowAdapter();
         mCurrentUsersList.setAdapter(mUsersAdapter);
 
+        // Task 10: paint the status pill with whatever the service has
+        // cached right now. If the service isn't bound yet or hasn't
+        // confirmed a status this session the pill stays hidden until
+        // a later refresh (from cycleStatus, onResume hydration, or
+        // MumlaService.onConnected) calls back in.
+        refreshStatusPill();
+
         return v;
+    }
+
+    /**
+     * Task 10: repaint the carousel's compact presence pill from the
+     * service's cached status/audibility. Safe to call from any path
+     * (post-cycle, onResume hydration, connect hydration) — null-safe
+     * when the fragment view isn't attached or the service isn't bound.
+     *
+     * Null label → hidden pill (no presence known yet this session).
+     * Online/busy/offline → colored dot + matching label text.
+     * Audible == FALSE → red volume-off icon appears to the right.
+     */
+    public void refreshStatusPill() {
+        View root = getView();
+        if (root == null || getService() == null) return;
+
+        final String label = getService().getCurrentStatus();
+        final Boolean audible = getService().getCurrentAudible();
+
+        View pill = root.findViewById(R.id.status_pill);
+        View dot = root.findViewById(R.id.status_dot);
+        TextView tv = root.findViewById(R.id.status_label);
+        ImageView mutedIcon = root.findViewById(R.id.status_muted_icon);
+        if (pill == null || dot == null || tv == null) return;
+
+        if (label == null) {
+            pill.setVisibility(View.GONE);
+            return;
+        }
+        pill.setVisibility(View.VISIBLE);
+        switch (label) {
+            case "online":
+                dot.setBackgroundResource(R.drawable.circle_success);
+                tv.setText("Online");
+                break;
+            case "busy":
+                dot.setBackgroundResource(R.drawable.circle_amber);
+                tv.setText("Busy");
+                break;
+            case "offline":
+            default:
+                dot.setBackgroundResource(R.drawable.circle_muted);
+                tv.setText("Offline");
+                break;
+        }
+        if (mutedIcon != null) {
+            mutedIcon.setVisibility(Boolean.FALSE.equals(audible)
+                    ? View.VISIBLE : View.GONE);
+        }
     }
 
     @Override
     public void onServiceBound(IHumlaService service) {
         super.onServiceBound(service);
         rebuild();
+        // Service just bound — whatever presence/audibility the service
+        // has cached (from earlier this session or a hydration POST)
+        // should paint the pill immediately instead of waiting for the
+        // next orange-button cycle.
+        refreshStatusPill();
     }
 
     @Override

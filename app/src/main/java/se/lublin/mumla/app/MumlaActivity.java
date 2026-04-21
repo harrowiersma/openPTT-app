@@ -91,6 +91,7 @@ import se.lublin.mumla.BuildConfig;
 import se.lublin.mumla.R;
 import se.lublin.mumla.Settings;
 import se.lublin.mumla.channel.AccessTokenFragment;
+import se.lublin.mumla.channel.ChannelCarouselFragment;
 import se.lublin.mumla.channel.ChannelFragment;
 import se.lublin.mumla.channel.ServerInfoFragment;
 import se.lublin.mumla.db.DatabaseCertificate;
@@ -162,6 +163,13 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
                 loadDrawerFragment(DrawerAdapter.ITEM_FAVOURITES);
             }
             updateConnectionState(getService());
+
+            // Task 10: onResume hydration path. fetchStatus is a no-op
+            // unless the admin URL + Mumble username are both known,
+            // which requires isConnected() — but we still fire it so
+            // that returning from background while connected picks up
+            // any server-side status change (dashboard override, etc.).
+            mService.fetchStatus(() -> runOnUiThread(() -> refreshCarouselStatusPill()));
         }
 
         @Override
@@ -502,10 +510,28 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
             mService.computeAudible(),
             /* onSuccess */ () -> runOnUiThread(() -> {
                 mService.speakNow(ttsOk);
-                // TODO(task10): refresh carousel status pill
+                refreshCarouselStatusPill();
             }),
             /* onError */ () -> runOnUiThread(() -> mService.speakNow("Status change failed"))
         );
+    }
+
+    /** Task 10: locate the live ChannelCarouselFragment (nested inside
+     *  ChannelFragment's child FragmentManager via ViewPager) and tell
+     *  it to repaint its status pill. No-op if the carousel isn't
+     *  currently attached — e.g. user is on the chat tab or a drawer
+     *  fragment is up. */
+    private void refreshCarouselStatusPill() {
+        Fragment host = getSupportFragmentManager().findFragmentById(R.id.content_frame);
+        if (host == null) return;
+        // ChannelFragment hosts the carousel; drawer-loaded fragments
+        // like FavouriteServerListFragment won't pass this check.
+        for (Fragment child : host.getChildFragmentManager().getFragments()) {
+            if (child instanceof ChannelCarouselFragment) {
+                ((ChannelCarouselFragment) child).refreshStatusPill();
+                return;
+            }
+        }
     }
 
     /**

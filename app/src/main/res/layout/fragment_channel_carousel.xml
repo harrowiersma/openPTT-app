@@ -76,6 +76,53 @@
             android:paddingBottom="3dp"/>
     </FrameLayout>
 
+    <!-- Task 10 status pill: compact presence chip directly below the
+         active-channel tile. Dot color + label follow online/busy/
+         offline; the red volume-off icon appears when the device is
+         muted (ringer not NORMAL, or voice-call stream volume 0).
+         Visibility defaults to gone — refreshStatusPill() shows it
+         once the service reports a non-null status. -->
+    <LinearLayout
+        android:id="@+id/status_pill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_status_pill"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/status_dot"
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:background="@drawable/circle_success"
+            android:layout_marginEnd="6dp"/>
+
+        <TextView
+            android:id="@+id/status_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ONLINE"
+            android:textSize="12sp"
+            android:textAllCaps="true"
+            android:textColor="?attr/callUiText"/>
+
+        <ImageView
+            android:id="@+id/status_muted_icon"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="6dp"
+            android:src="@drawable/ic_volume_off"
+            android:contentDescription="@string/status_muted_desc"
+            android:visibility="gone"/>
+    </LinearLayout>
+
     <LinearLayout
         android:id="@+id/channelCarouselDots"
         android:layout_width="match_parent"

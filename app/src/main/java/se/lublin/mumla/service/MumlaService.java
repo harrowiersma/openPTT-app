@@ -167,6 +167,13 @@ public class MumlaService extends HumlaService implements
             if (mSettings.isNotificationSoundsEnabled() && mSoundPoolReady) {
                 mSoundPool.play(mSoundConnect, 0.3f, 0.3f, 1, 0, 1f);
             }
+            // Task 10: hydrate presence from the server now that we
+            // know our Mumble session is live. Catches USERCREATED
+            // auto-Online and any admin-side overrides made while the
+            // app was disconnected. After the fetch we also push the
+            // current audibility so the dashboard has a fresh value —
+            // the ringer/stream volume may have changed between sessions.
+            fetchStatus(() -> postStatus(null, computeAudible(), null, null));
         }
 
         @Override
@@ -814,6 +821,51 @@ public class MumlaService extends HumlaService implements
                 if (conn != null) conn.disconnect();
             }
         }, "postStatus").start();
+    }
+
+    /** Task 10: hydrate cached presence from the server. Fires on a
+     *  worker thread; best-effort — a failed request just leaves the
+     *  cache alone and still invokes onDone so callers can chain
+     *  follow-up work. Called on Mumble connect (catches auto-Online
+     *  via USERCREATED + admin overrides made while the app was
+     *  disconnected) and on MumlaActivity.onResume. */
+    public void fetchStatus(final Runnable onDone) {
+        final String adminUrl = mSettings.getAdminUrl();
+        final String username = currentMumbleUsername();
+        if (adminUrl == null || adminUrl.isEmpty() || username == null) {
+            if (onDone != null) onDone.run();
+            return;
+        }
+        new Thread(() -> {
+            java.net.HttpURLConnection conn = null;
+            try {
+                String url = adminUrl + "/api/users/status?username="
+                        + java.net.URLEncoder.encode(username, "UTF-8");
+                conn = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                conn.setConnectTimeout(4000);
+                conn.setReadTimeout(6000);
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    java.io.InputStream is = conn.getInputStream();
+                    java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+                    byte[] tmp = new byte[256];
+                    int n;
+                    while ((n = is.read(tmp)) > 0) buf.write(tmp, 0, n);
+                    org.json.JSONObject o = new org.json.JSONObject(buf.toString("UTF-8"));
+                    mCurrentStatus = o.isNull("label") ? null : o.optString("label", null);
+                    mCurrentAudible = o.isNull("is_audible") ? null : o.optBoolean("is_audible");
+                    Log.i(TAG, "fetchStatus → label=" + mCurrentStatus
+                            + " is_audible=" + mCurrentAudible);
+                } else {
+                    Log.w(TAG, "fetchStatus http " + code);
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "fetchStatus failed: " + e);
+            } finally {
+                if (conn != null) conn.disconnect();
+                if (onDone != null) onDone.run();
+            }
+        }, "fetchStatus").start();
     }
 
     @Override
