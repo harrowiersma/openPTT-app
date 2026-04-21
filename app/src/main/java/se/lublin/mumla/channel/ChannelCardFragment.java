@@ -101,8 +101,7 @@ public class ChannelCardFragment extends HumlaServiceFragment {
             }
             if (mName != null) mName.setText(channel.getName());
             if (mMembers != null) {
-                List<? extends IUser> users = channel.getUsers();
-                int n = users == null ? 0 : users.size();
+                int n = BotUsers.countHumans(channel.getUsers());
                 mMembers.setText(getResources().getQuantityString(
                         R.plurals.channel_card_member_count, n, n));
             }

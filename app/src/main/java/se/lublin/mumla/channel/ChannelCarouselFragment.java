@@ -288,7 +288,7 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
     private void updateCurrentUsers(@Nullable IChannel channel) {
         if (channel == null) return;
         List<? extends IUser> users = channel.getUsers();
-        int n = users == null ? 0 : users.size();
+        int n = BotUsers.countHumans(users);
         if (mUsersAdapter != null) mUsersAdapter.submit(users);
         if (mCurrentUsersBand != null) {
             String name = channel.getName() == null ? "" : channel.getName();

@@ -1,23 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   ~ Channel carousel host.
-  ~
-  ~ Layout top-down:
-  ~   1. "CHANNELS" header band.
-  ~   2. FrameLayout that overlays the ViewPager2 (current channel
-  ~      tile) with two floating pill chips anchored to either side —
-  ~      the left pill shows the previous channel destination, the
-  ~      right the next. Pills live here (next to the channel name)
-  ~      instead of the bottom PTT row so the operator's eye doesn't
-  ~      confuse them with the system-nav Back/Menu buttons.
-  ~   3. Page dots.
-  ~   4. "CURRENT USERS" band with online count.
-  ~   5. RecyclerView user list (weight=1, absorbs remaining space).
+  ~ Layout top-down: CHANNELS header / ViewPager2 tile + floating
+  ~ prev/next pills / page dots / CURRENT USERS band / user list.
+  ~ Colors come from theme attrs (?attr/callUi*) so the Theme
+  ~ preference (system/light/dark) actually produces a readable UI
+  ~ in both modes.
   -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:background="?attr/callUiBg">
 
     <TextView
         android:id="@+id/channelCarouselHeader"
@@ -27,7 +21,7 @@
         android:gravity="center"
         android:textStyle="bold"
         android:textSize="11sp"
-        android:textColor="#9E9E9E"
+        android:textColor="?attr/callUiTextMuted"
         android:letterSpacing="0.15"
         android:paddingTop="4dp"
         android:paddingBottom="2dp"/>
@@ -49,7 +43,7 @@
             android:layout_marginStart="4dp"
             android:background="@drawable/softkey_pill_bg"
             android:text="◀"
-            android:textColor="#FFC107"
+            android:textColor="?attr/callUiSoftkey"
             android:textStyle="bold"
             android:textSize="11sp"
             android:singleLine="true"
@@ -69,7 +63,7 @@
             android:layout_marginEnd="4dp"
             android:background="@drawable/softkey_pill_bg"
             android:text="▶"
-            android:textColor="#FFC107"
+            android:textColor="?attr/callUiSoftkey"
             android:textStyle="bold"
             android:textSize="11sp"
             android:singleLine="true"
@@ -94,7 +88,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#333333"/>
+        android:background="?attr/callUiDivider"/>
 
     <TextView
         android:id="@+id/channelCurrentUsersBand"
@@ -108,7 +102,7 @@
         android:paddingEnd="8dp"
         android:paddingTop="4dp"
         android:paddingBottom="4dp"
-        android:background="#161616"
+        android:background="?attr/callUiBandBg"
         android:gravity="start|center_vertical"/>
 
     <androidx.recyclerview.widget.RecyclerView

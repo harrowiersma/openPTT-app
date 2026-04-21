@@ -15,7 +15,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center_horizontal"
-    android:background="#0A0A0A"
+    android:background="?attr/callUiBg"
     android:padding="10dp">
 
     <TextView
@@ -37,7 +37,7 @@
         android:gravity="center"
         android:textSize="22sp"
         android:textStyle="bold"
-        android:textColor="#FFFFFF"
+        android:textColor="?attr/callUiText"
         android:singleLine="true"
         android:ellipsize="end"
         android:paddingStart="8dp"
@@ -48,7 +48,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="11sp"
-        android:textColor="#BBBBBB"
+        android:textColor="?attr/callUiTextMuted"
         android:paddingTop="2dp"/>
 
     <TextView
@@ -60,7 +60,7 @@
         android:fontFamily="monospace"
         android:textSize="28sp"
         android:textStyle="bold"
-        android:textColor="#EEEEEE"/>
+        android:textColor="?attr/callUiText"/>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/activeCallHangup"

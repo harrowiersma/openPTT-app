@@ -7,6 +7,19 @@
         <item name="android:textColorPrimaryInverse">#f0f0f0</item>
         <item name="android:textColorSecondaryInverse">#e0e0e0</item>
 
+        <!-- Radio call UI — DARK values. Near-black for night + sun
+             viewing with the screen dimmed, gold softkey stays bright
+             enough to read. -->
+        <item name="callUiBg">#0A0A0A</item>
+        <item name="callUiText">#FFFFFF</item>
+        <item name="callUiTextMuted">#BBBBBB</item>
+        <item name="callUiDivider">#333333</item>
+        <item name="callUiSoftkey">#FFC107</item>
+        <item name="callUiSoftkeyPillBg">#242424</item>
+        <item name="callUiSoftkeyPillStroke">#4A4A4A</item>
+        <item name="callUiBandBg">#161616</item>
+        <item name="callUiUserRowText">#EEEEEE</item>
+
         <!-- Dark primary color is too dark for dialog buttons (on dark background). We tweak old
              style, material style, and old preference dialogs to use a higher-contrast primary -->
         <item name="alertDialogTheme">@style/TweakedAlertDialog</item>

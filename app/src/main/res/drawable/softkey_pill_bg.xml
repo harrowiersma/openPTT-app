@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ~ Pill background for the "◀ <channel>" / "<channel> ▶" chips that
-  ~ flank the PTT button. The rounded container reads as an app-level
-  ~ element, visually distinct from whatever system nav buttons sit
-  ~ directly below it — so an operator doesn't mistake "NEXT" for the
-  ~ Android Back button.
+  ~ Pill background for softkey chips flanking the PTT and channel
+  ~ tile. LIGHT-mode values; a drawable-night/ override swaps the
+  ~ fill + stroke for the dark aesthetic.
   -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
        android:shape="rectangle">
-    <solid android:color="#242424"/>
-    <stroke android:width="1dp" android:color="#4A4A4A"/>
+    <solid android:color="#F2F2F2"/>
+    <stroke android:width="1dp" android:color="#BDBDBD"/>
     <corners android:radius="14dp"/>
 </shape>

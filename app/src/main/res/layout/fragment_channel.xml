@@ -70,7 +70,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#333333"/>
+        android:background="?attr/callUiDivider"/>
 
     <!-- Round centered PTT. Destination pills (PREV / NEXT) moved up
          into the carousel header next to the active channel name —
@@ -82,7 +82,7 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:orientation="horizontal"
-        android:background="#0A0A0A"
+        android:background="?attr/callUiBg"
         android:paddingTop="6dp"
         android:paddingBottom="6dp">
 

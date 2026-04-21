@@ -32,7 +32,7 @@
         android:paddingLeft="8dp"
         android:paddingRight="4dp"
         android:singleLine="true"
-        android:textColor="#EEEEEE"
+        android:textColor="?attr/callUiUserRowText"
         android:textSize="16sp"/>
 
     <TextView

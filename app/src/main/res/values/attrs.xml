@@ -21,6 +21,22 @@
     <attr name="popupOverlay" format="reference" />
     <attr name="pttPressed" format="color" />
 
+    <!-- Radio "call UI" palette. The P50 runs the app full-screen in
+         both sun and shade, so we want a true polar aesthetic — pure
+         black/white, not Material3's slightly-off surface greys. The
+         existing Settings > Appearance > Theme (system/light/dark)
+         already triggers AppCompatDelegate.setDefaultNightMode, so all
+         these attrs need day + night values. -->
+    <attr name="callUiBg" format="color" />
+    <attr name="callUiText" format="color" />
+    <attr name="callUiTextMuted" format="color" />
+    <attr name="callUiDivider" format="color" />
+    <attr name="callUiSoftkey" format="color" />
+    <attr name="callUiSoftkeyPillBg" format="color" />
+    <attr name="callUiSoftkeyPillStroke" format="color" />
+    <attr name="callUiBandBg" format="color" />
+    <attr name="callUiUserRowText" format="color" />
+
     <declare-styleable name="SeekBarDialogPreference">
         <attr name="max" format="integer" />
         <attr name="min" format="integer" />

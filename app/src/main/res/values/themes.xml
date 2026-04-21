@@ -12,6 +12,19 @@
         <!-- This makes the ActionMode background dark, somehow: that style is empty!
          But it is what we want, on both dark/light themes (text color is bright) -->
         <item name="actionModeStyle">@style/App.Widget.ActionMode</item>
+
+        <!-- Radio call UI — LIGHT values. Black-on-white so the P50 is
+             readable in direct sun. Gold softkey intentionally darker
+             than in dark-mode so it still pops on a white pill. -->
+        <item name="callUiBg">#FFFFFF</item>
+        <item name="callUiText">#111111</item>
+        <item name="callUiTextMuted">#555555</item>
+        <item name="callUiDivider">#CCCCCC</item>
+        <item name="callUiSoftkey">#8C6A00</item>
+        <item name="callUiSoftkeyPillBg">#F2F2F2</item>
+        <item name="callUiSoftkeyPillStroke">#BDBDBD</item>
+        <item name="callUiBandBg">#F5F5F5</item>
+        <item name="callUiUserRowText">#222222</item>
     </style>
 
     <!-- This is for always have dark themed appbar, used in activity .xmls -->

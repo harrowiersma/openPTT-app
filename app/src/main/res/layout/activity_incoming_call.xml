@@ -13,7 +13,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center_horizontal"
-    android:background="#0A0A0A"
+    android:background="?attr/callUiBg"
     android:padding="10dp">
 
     <TextView
@@ -24,7 +24,7 @@
         android:text="INCOMING CALL"
         android:textSize="12sp"
         android:textStyle="bold"
-        android:textColor="#FFC107"
+        android:textColor="?attr/callUiSoftkey"
         android:letterSpacing="0.2"/>
 
     <TextView
@@ -35,7 +35,7 @@
         android:gravity="center"
         android:textSize="22sp"
         android:textStyle="bold"
-        android:textColor="#FFFFFF"
+        android:textColor="?attr/callUiText"
         android:singleLine="true"
         android:ellipsize="end"
         android:paddingStart="8dp"
@@ -46,7 +46,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="11sp"
-        android:textColor="#BBBBBB"
+        android:textColor="?attr/callUiTextMuted"
         android:paddingBottom="8dp"/>
 
     <View

@@ -30,7 +30,12 @@ public class UserRowAdapter extends RecyclerView.Adapter<UserRowAdapter.VH> {
 
     public void submit(List<? extends IUser> users) {
         mUsers.clear();
-        if (users != null) mUsers.addAll(users);
+        if (users != null) {
+            for (IUser u : users) {
+                if (u == null || BotUsers.isBot(u)) continue;
+                mUsers.add(u);
+            }
+        }
         // Stable alphabetical order so the list doesn't jump when the
         // server returns users in a different order after a reconnect.
         Collections.sort(mUsers, (a, b) -> {
