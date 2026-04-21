@@ -297,20 +297,10 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         }
     }
 
-    /**
-     * Skip channels that have no human carousel-value:
-     * - Phone/Call-* sub-channels (reached only via the incoming-call overlay).
-     * - The Phone parent itself: incoming calls land in Phone/Call-N and the
-     *   overlay moves the user there directly; manually parking in Phone
-     *   does nothing useful and the Phone ACL bounces non-eligible users
-     *   straight back out.
-     */
+    /** Delegates to {@link HumanChannels#isVisible} so knob navigation and
+     *  the carousel render the exact same set. */
     private static boolean shouldSurface(IChannel c) {
-        if (c == null) return false;
-        String name = c.getName() == null ? "" : c.getName();
-        if (name.startsWith("Call-")) return false;
-        if ("Phone".equals(name)) return false;
-        return true;
+        return HumanChannels.isVisible(c);
     }
 
     private void scrollToChannelId(int channelId, boolean smooth) {
