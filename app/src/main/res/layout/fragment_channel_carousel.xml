@@ -13,6 +13,19 @@
     android:orientation="vertical"
     android:background="?attr/callUiBg">
 
+    <!-- Visible only while this device's most-recent SIP call is on hold. -->
+    <TextView
+        android:id="@+id/holdBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textColor="?attr/callUiBg"
+        android:background="?attr/callUiSoftkey"
+        android:padding="4dp"
+        android:visibility="gone"/>
+
     <TextView
         android:id="@+id/channelCarouselHeader"
         android:layout_width="match_parent"

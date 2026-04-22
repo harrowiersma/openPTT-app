@@ -59,6 +59,7 @@ import se.lublin.humla.util.HumlaObserver;
 import se.lublin.humla.util.IHumlaObserver;
 import se.lublin.mumla.R;
 import se.lublin.mumla.service.IMumlaService;
+import se.lublin.mumla.sip.HoldStateClient;
 import se.lublin.mumla.util.HumlaServiceFragment;
 
 public class ChannelCarouselFragment extends HumlaServiceFragment {
@@ -77,6 +78,13 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
     private TextView mSoftkeyRight;
     /** Snapshot of channel IDs currently shown in the carousel, L→R. */
     private final List<Integer> mChannelIds = new ArrayList<>();
+
+    private TextView mHoldBanner;
+    private final HoldStateClient.Listener mHoldListener = (holding, slot) -> {
+        // Bounce to UI thread; HoldStateClient fires on its worker.
+        android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+        h.post(this::refreshHoldBanner);
+    };
 
     private final PresenceCache.Listener mPresenceListener = () -> {
         // Bounce to UI thread; PresenceCache fires on a worker.
@@ -167,6 +175,7 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
 
         mSoftkeyLeft = v.findViewById(R.id.softkeyLeft);
         mSoftkeyRight = v.findViewById(R.id.softkeyRight);
+        mHoldBanner = v.findViewById(R.id.holdBanner);
         mDots = v.findViewById(R.id.channelCarouselDots);
         mCurrentUsersBand = v.findViewById(R.id.channelCurrentUsersBand);
         mCurrentUsersList = v.findViewById(R.id.channelCurrentUsersList);
@@ -189,8 +198,26 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         // a later refresh (from cycleStatus, onResume hydration, or
         // MumlaService.onConnected) calls back in.
         refreshStatusPill();
+        // Hold banner: same story — paints from whatever the service
+        // knows now, repaints on transitions via the listener wired in
+        // onServiceBound.
+        refreshHoldBanner();
 
         return v;
+    }
+
+    /** Paint the hold banner from the service's current hold state.
+     *  Shown only when THIS device's most-recent SIP call is on hold. */
+    private void refreshHoldBanner() {
+        if (mHoldBanner == null) return;
+        IMumlaService svc = getService();
+        if (svc != null && svc.isHoldingCall()) {
+            int slot = svc.getHoldingSlot();
+            mHoldBanner.setText(getString(R.string.phone_hold_banner, slot));
+            mHoldBanner.setVisibility(View.VISIBLE);
+        } else {
+            mHoldBanner.setVisibility(View.GONE);
+        }
     }
 
     /**
@@ -262,6 +289,10 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
             }
             svc.getPresenceCache().addListener(mPresenceListener);
         }
+        if (svc != null && svc.getHoldStateClient() != null) {
+            svc.getHoldStateClient().addListener(mHoldListener);
+        }
+        refreshHoldBanner();
     }
 
     @Override
@@ -269,6 +300,9 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         IMumlaService svc = getService();
         if (svc != null && svc.getPresenceCache() != null) {
             svc.getPresenceCache().removeListener(mPresenceListener);
+        }
+        if (svc != null && svc.getHoldStateClient() != null) {
+            svc.getHoldStateClient().removeListener(mHoldListener);
         }
         super.onServiceUnbound();
     }
