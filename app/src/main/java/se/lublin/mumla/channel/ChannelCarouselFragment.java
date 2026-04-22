@@ -212,8 +212,7 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         if (mHoldBanner == null) return;
         IMumlaService svc = getService();
         if (svc != null && svc.isHoldingCall()) {
-            int slot = svc.getHoldingSlot();
-            mHoldBanner.setText(getString(R.string.phone_hold_banner, slot));
+            mHoldBanner.setText(R.string.phone_hold_banner);
             mHoldBanner.setVisibility(View.VISIBLE);
         } else {
             mHoldBanner.setVisibility(View.GONE);

@@ -286,8 +286,11 @@
          is already held. (Bridge refuses; this is feedback to the operator.) -->
     <string name="phone_already_held_tts">Resume held call first.</string>
     <!-- Banner above the channels strip when this device is the operator
-         on a call that is currently on hold. %d = slot number. -->
-    <string name="phone_hold_banner">Call on hold (Slot %d) — press green to resume</string>
+         on a call that is currently on hold. Kept to two words so it
+         stays legible on the P50's small screen; slot context is
+         redundant (operator knows which slot — the bridge only allows
+         one held call at a time). -->
+    <string name="phone_hold_banner">CALL HOLD</string>
     <string name="phone_hung_up_tts">Call ended.</string>
     <string name="shift_started_tts">Shift started. Ends at %s.</string>
     <string name="shift_stopping_tts">Ending shift. Long press again to cancel.</string>

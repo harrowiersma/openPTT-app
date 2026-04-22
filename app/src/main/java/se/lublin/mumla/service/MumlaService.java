@@ -722,12 +722,21 @@ public class MumlaService extends HumlaService implements
      *  service started mid-call). */
     public void restorePreCallChannel() {
         int target = mPreCallChannelId;
-        if (target < 0) return;
         mPreCallChannelId = -1;
         try {
             if (!isConnectionEstablished()) return;
             se.lublin.humla.IHumlaSession session = HumlaSession();
             if (session == null) return;
+            if (target < 0) {
+                // No pre-call channel stashed — happens if the service
+                // came up mid-call or the answer flow skipped the
+                // stash. Fall back to Root so the operator doesn't get
+                // stranded inside Phone/Call-N after the bot leaves.
+                se.lublin.humla.model.IChannel root = session.getRootChannel();
+                if (root == null) return;
+                target = root.getId();
+                Log.i(TAG, "restorePreCallChannel: no stash, falling back to Root id=" + target);
+            }
             Log.i(TAG, "restorePreCallChannel: joinChannel(" + target + ")");
             session.joinChannel(target);
         } catch (Exception e) {
