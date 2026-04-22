@@ -63,6 +63,7 @@ import se.lublin.mumla.R;
 import se.lublin.mumla.Settings;
 import se.lublin.mumla.admin.CapabilitiesClient;
 import se.lublin.mumla.channel.PresenceCache;
+import se.lublin.mumla.sip.HoldStateClient;
 import se.lublin.mumla.phone.ActiveCallActivity;
 import se.lublin.mumla.phone.IncomingCallActivity;
 import se.lublin.mumla.phone.IncomingCallParser;
@@ -118,6 +119,10 @@ public class MumlaService extends HumlaService implements
     private PresenceCache mPresenceCache;
     private ScheduledExecutorService mPresenceScheduler;
     private static final int PRESENCE_POLL_SECONDS = 20;
+
+    private HoldStateClient mHoldStateClient;
+    private ScheduledExecutorService mHoldStateScheduler;
+    private static final int HOLD_STATE_POLL_SECONDS = 5;
     private TextToSpeech.OnInitListener mTTSInitListener = new TextToSpeech.OnInitListener() {
         @Override
         public void onInit(int status) {
@@ -184,6 +189,7 @@ public class MumlaService extends HumlaService implements
             fetchStatus(() -> postStatus(null, computeAudible(), null, null));
             // Prime the channel-list presence filter and start polling.
             startPresencePolling();
+            startHoldStatePolling();
         }
 
         @Override
@@ -232,6 +238,7 @@ public class MumlaService extends HumlaService implements
                                 isReconnecting(), MumlaService.this);
             }
             stopPresencePolling();
+            stopHoldStatePolling();
         }
 
         @Override
@@ -912,6 +919,39 @@ public class MumlaService extends HumlaService implements
         return mPresenceCache;
     }
 
+    private synchronized void startHoldStatePolling() {
+        if (mHoldStateClient == null) return;
+        stopHoldStatePolling();
+        mHoldStateClient.refresh();
+        mHoldStateScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "hold-state-poll");
+            t.setDaemon(true);
+            return t;
+        });
+        mHoldStateScheduler.scheduleAtFixedRate(
+                mHoldStateClient::refresh,
+                HOLD_STATE_POLL_SECONDS, HOLD_STATE_POLL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private synchronized void stopHoldStatePolling() {
+        if (mHoldStateScheduler != null) {
+            mHoldStateScheduler.shutdownNow();
+            mHoldStateScheduler = null;
+        }
+    }
+
+    public HoldStateClient getHoldStateClient() {
+        return mHoldStateClient;
+    }
+
+    public boolean isHoldingCall() {
+        return mHoldStateClient != null && mHoldStateClient.isHolding();
+    }
+
+    public int getHoldingSlot() {
+        return mHoldStateClient == null ? 0 : mHoldStateClient.getSlot();
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -920,6 +960,7 @@ public class MumlaService extends HumlaService implements
         // Register for preference changes
         mSettings = Settings.getInstance(this);
         mPresenceCache = new PresenceCache(mSettings.getAdminUrl());
+        mHoldStateClient = new HoldStateClient(mSettings.getAdminUrl());
         mPTTSoundEnabled = mSettings.isPttSoundEnabled();
         mShortTtsMessagesEnabled = mSettings.isShortTextToSpeechMessagesEnabled();
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -991,6 +1032,11 @@ public class MumlaService extends HumlaService implements
         if (mPresenceCache != null) {
             mPresenceCache.close();
             mPresenceCache = null;
+        }
+        stopHoldStatePolling();
+        if (mHoldStateClient != null) {
+            mHoldStateClient.close();
+            mHoldStateClient = null;
         }
         if (mNotification != null) {
             mNotification.hide();

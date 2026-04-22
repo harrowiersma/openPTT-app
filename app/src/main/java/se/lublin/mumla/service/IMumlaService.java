@@ -4,6 +4,7 @@ import java.util.List;
 
 import se.lublin.humla.IHumlaService;
 import se.lublin.mumla.channel.PresenceCache;
+import se.lublin.mumla.sip.HoldStateClient;
 
 /**
  * Created by andrew on 28/02/17.
@@ -81,4 +82,16 @@ public interface IMumlaService extends IHumlaService {
     /** Channel-list presence filter cache, refreshed every 20 s while
      *  Mumble is connected. May be null before onCreate completes. */
     PresenceCache getPresenceCache();
+
+    /** Hold-state cache, polls /api/sip/hold-state every 5 s while
+     *  Mumble is connected. May be null before onCreate completes. */
+    HoldStateClient getHoldStateClient();
+
+    /** True if this device's most-recent SIP call is currently on hold
+     *  (operator pressed green from the Phone channel, radio hears
+     *  hold-music). */
+    boolean isHoldingCall();
+
+    /** Slot of the currently-held call, or 0 if none. */
+    int getHoldingSlot();
 }
