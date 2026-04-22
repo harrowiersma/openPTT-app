@@ -54,6 +54,7 @@ import se.lublin.humla.IHumlaService;
 import se.lublin.humla.IHumlaSession;
 import se.lublin.humla.model.IChannel;
 import se.lublin.humla.model.IUser;
+import se.lublin.humla.net.Permissions;
 import se.lublin.humla.util.HumlaException;
 import se.lublin.humla.util.HumlaObserver;
 import se.lublin.humla.util.IHumlaObserver;
@@ -141,6 +142,12 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         @Override public void onChannelAdded(IChannel channel) { rebuild(); }
         @Override public void onChannelRemoved(IChannel channel) { rebuild(); }
         @Override public void onChannelStateUpdated(IChannel channel) { rebuild(); }
+        @Override public void onChannelPermissionsUpdated(IChannel channel) {
+            // Server answered a PermissionQuery — the set of channels
+            // we're allowed to Traverse may have changed. Rebuild so
+            // HumanChannels.isVisible sees the freshly-cached bits.
+            rebuild();
+        }
         @Override public void onDisconnected(HumlaException e) {
             mChannelIds.clear();
             if (mPagerAdapter != null) mPagerAdapter.notifyDataSetChanged();
@@ -333,6 +340,23 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
             if (root == null) return;
             List<? extends IChannel> children = root.getSubchannels();
             if (children == null) children = Collections.emptyList();
+
+            // For channels whose permissions haven't been cached yet,
+            // fire a PermissionQuery so the server tells us whether this
+            // user has Traverse. onChannelPermissionsUpdated rebuilds the
+            // carousel when the response arrives — until then the
+            // channel stays visible (name-only filter).
+            for (IChannel c : children) {
+                if (c == null) continue;
+                if (!HumanChannels.isVisible(c.getName())) continue;
+                if ((c.getPermissions() & Permissions.Cached) == 0) {
+                    try {
+                        session.requestPermissions(c.getId());
+                    } catch (Exception e) {
+                        Log.d(TAG, "requestPermissions(" + c.getId() + ") failed: " + e);
+                    }
+                }
+            }
 
             List<IChannel> filtered = new ArrayList<>();
             for (IChannel c : children) {
