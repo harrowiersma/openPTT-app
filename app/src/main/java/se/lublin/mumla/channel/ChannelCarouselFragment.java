@@ -78,6 +78,19 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
     /** Snapshot of channel IDs currently shown in the carousel, L→R. */
     private final List<Integer> mChannelIds = new ArrayList<>();
 
+    private final PresenceCache.Listener mPresenceListener = () -> {
+        // Bounce to UI thread; PresenceCache fires on a worker.
+        android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+        h.post(() -> {
+            if (mUsersAdapter == null) return;
+            IMumlaService svc = getService();
+            if (svc == null) return;
+            mUsersAdapter.setPresenceContext(
+                    svc.getPresenceCache(), safeOwnUsername());
+            refreshCurrent();   // existing helper that re-submits the user list
+        });
+    };
+
     private final IHumlaObserver mObserver = new HumlaObserver() {
         @Override public void onUserJoinedChannel(IUser user, IChannel newChannel, IChannel oldChannel) {
             if (getService() == null || !getService().isConnected()) return;
@@ -238,6 +251,26 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         // should paint the pill immediately instead of waiting for the
         // next orange-button cycle.
         refreshStatusPill();
+        // Refresh whenever the cached presence map changes so a remote
+        // user toggling Offline disappears within the next poll cycle
+        // even if no Mumble event would otherwise trigger a redraw.
+        IMumlaService svc = getService();
+        if (svc != null && svc.getPresenceCache() != null) {
+            if (mUsersAdapter != null) {
+                mUsersAdapter.setPresenceContext(
+                        svc.getPresenceCache(), safeOwnUsername());
+            }
+            svc.getPresenceCache().addListener(mPresenceListener);
+        }
+    }
+
+    @Override
+    public void onServiceUnbound() {
+        IMumlaService svc = getService();
+        if (svc != null && svc.getPresenceCache() != null) {
+            svc.getPresenceCache().removeListener(mPresenceListener);
+        }
+        super.onServiceUnbound();
     }
 
     @Override

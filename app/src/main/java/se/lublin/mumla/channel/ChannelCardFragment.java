@@ -38,6 +38,11 @@ public class ChannelCardFragment extends HumlaServiceFragment {
     private TextView mName;
     private TextView mMembers;
 
+    private final PresenceCache.Listener mPresenceListener = () -> {
+        android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+        h.post(this::rebind);
+    };
+
     private final IHumlaObserver mObserver = new HumlaObserver() {
         @Override public void onUserJoinedChannel(IUser user, IChannel newChannel, IChannel oldChannel) {
             rebind();
@@ -82,6 +87,19 @@ public class ChannelCardFragment extends HumlaServiceFragment {
     public void onServiceBound(IHumlaService service) {
         super.onServiceBound(service);
         rebind();
+        IMumlaService svc = getService();
+        if (svc != null && svc.getPresenceCache() != null) {
+            svc.getPresenceCache().addListener(mPresenceListener);
+        }
+    }
+
+    @Override
+    public void onServiceUnbound() {
+        IMumlaService svc = getService();
+        if (svc != null && svc.getPresenceCache() != null) {
+            svc.getPresenceCache().removeListener(mPresenceListener);
+        }
+        super.onServiceUnbound();
     }
 
     @Override
