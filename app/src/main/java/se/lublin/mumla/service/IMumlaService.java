@@ -52,6 +52,9 @@ public interface IMumlaService extends IHumlaService {
      */
     boolean hasFeature(String key);
 
+    /** Local user's Mumble username if connected; null otherwise. */
+    String getOwnUsername();
+
     /** Last presence label confirmed by /api/users/status this session. */
     String getCurrentStatus();
 

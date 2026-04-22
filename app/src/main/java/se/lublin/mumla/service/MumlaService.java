@@ -505,6 +505,11 @@ public class MumlaService extends HumlaService implements
         return null;
     }
 
+    @Override
+    public String getOwnUsername() {
+        return currentMumbleUsername();
+    }
+
     private String currentMumbleChannelName() {
         try {
             if (isConnected() && getSessionChannel() != null) {

@@ -27,12 +27,23 @@ import se.lublin.mumla.R;
 public class UserRowAdapter extends RecyclerView.Adapter<UserRowAdapter.VH> {
 
     private final List<IUser> mUsers = new ArrayList<>();
+    private PresenceCache mPresenceCache;
+    private String mSelfName;
+
+    /** Fragment calls this once after constructing the adapter, then
+     *  re-calls it whenever the connection identity changes. Both args
+     *  may be null until the service is bound. */
+    public void setPresenceContext(PresenceCache cache, String selfName) {
+        mPresenceCache = cache;
+        mSelfName = selfName;
+    }
 
     public void submit(List<? extends IUser> users) {
         mUsers.clear();
         if (users != null) {
             for (IUser u : users) {
                 if (u == null || BotUsers.isBot(u)) continue;
+                if (PresenceFilter.isHidden(u, mPresenceCache, mSelfName)) continue;
                 mUsers.add(u);
             }
         }

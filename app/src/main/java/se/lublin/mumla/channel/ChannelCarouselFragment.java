@@ -160,6 +160,15 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
         mUsersAdapter = new UserRowAdapter();
         mCurrentUsersList.setAdapter(mUsersAdapter);
 
+        // Channel-list filter: drop Offline users. Service may not be
+        // bound yet — set whatever we can now; refreshPresenceContext
+        // (Task 7) keeps it in sync as the binding lands.
+        if (getService() != null) {
+            mUsersAdapter.setPresenceContext(
+                    getService().getPresenceCache(),
+                    safeOwnUsername());
+        }
+
         // Task 10: paint the status pill with whatever the service has
         // cached right now. If the service isn't bound yet or hasn't
         // confirmed a status this session the pill stays hidden until
@@ -428,6 +437,16 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
 
     private int dp(int v) {
         return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    /** Returns the local user's Mumble username if the service is
+     *  bound and connected; null otherwise. */
+    private String safeOwnUsername() {
+        try {
+            return getService() == null ? null : getService().getOwnUsername();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private class CarouselAdapter extends FragmentStateAdapter {
