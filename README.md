@@ -90,18 +90,51 @@ single app, boot-to-connected, hands-free channel feedback.
 
 ---
 
-## Build
+## Building
 
-Requires JDK 21 and Android SDK (the `fossDebug` variant uses no Google
-Services).
+The canonical build target is `assembleFossDebug`; the resulting APK
+(`app/build/outputs/apk/foss/debug/openptt-foss-debug.apk`) is what ships
+to the field and to prod's `/var/openptt/apk/openptt-foss-debug.apk`.
 
 ```bash
-JAVA_HOME=/path/to/jdk-21 \
-ANDROID_HOME=$HOME/Library/Android/sdk \
-./gradlew assembleFossDebug
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home  # macOS + Homebrew openjdk21
+./gradlew clean :app:assembleFossDebug
 ```
 
-Output: `app/build/outputs/apk/foss/debug/openptt-foss-debug.apk`.
+### Signing key
+
+`app/debug.keystore` is committed to the repo on purpose. It's a copy of
+a stock Android-Gradle-Plugin debug keystore (well-known default
+password `android`), so every machine produces APKs with the same
+signature as the ones already installed on field devices. This lets
+`adb install -r` succeed without uninstalling first — which would wipe
+the device's SharedPreferences and Mumble credentials.
+
+If the keystore ever needs rotation:
+
+1. Generate a fresh one (`keytool -genkey -v -keystore app/debug.keystore -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10950`).
+2. Plan a coordinated re-flash of every field device (each will need
+   `adb uninstall ch.harro.openptt` first, followed by re-provisioning
+   to restore Mumble creds).
+3. Update prod's served APK via `scripts/deploy-apk.sh`.
+
+If you need a real release-signing setup (Play Store, ProGuard, custodial
+credentials), generate a separate `release.jks`, add a
+`signingConfigs.release { ... }` block reading from
+`~/.gradle/gradle.properties`, and wire `buildTypes.release.signingConfig`.
+That's deliberately deferred — see
+`docs/plans/2026-04-22-deterministic-debug-signing-design.md`.
+
+### Deploying
+
+After a build, push the APK to prod with:
+
+```bash
+./scripts/deploy-apk.sh
+```
+
+This rebuilds, uploads to `/var/openptt/apk/openptt-foss-debug.apk`,
+and verifies hash parity. Future CI calls the same script.
 
 ---
 
