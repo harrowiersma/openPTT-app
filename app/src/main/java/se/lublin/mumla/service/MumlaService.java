@@ -582,9 +582,26 @@ public class MumlaService extends HumlaService implements
         if (username == null) return;
         final boolean wasHolding = isHoldingCall();
         final int heldSlot = getHoldingSlot();
+        final int preCallChanId = mPreCallChannelId;
         speak(getString(wasHolding
                 ? R.string.phone_resumed_tts
                 : R.string.phone_held_tts));
+        if (!wasHolding && preCallChanId >= 0) {
+            // Going ON hold — pre-move the operator to the pre-call
+            // channel they answered from so they can PTT immediately
+            // without having to turn the knob first. mPreCallChannelId
+            // stays stashed; the resume path navs back via
+            // moveSessionToNamedChannel("Phone", "Call-N").
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                try {
+                    if (!isConnectionEstablished()) return;
+                    se.lublin.humla.IHumlaSession session = HumlaSession();
+                    if (session != null) session.joinChannel(preCallChanId);
+                } catch (Exception e) {
+                    Log.w(TAG, "hold pre-nav to pre-call failed: " + e);
+                }
+            });
+        }
         new Thread(() -> {
             boolean ok = _postPhoneControl(adminUrl + "/api/sip/hold-toggle", username);
             if (ok && mHoldStateClient != null) {
