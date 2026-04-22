@@ -132,6 +132,12 @@ public class IncomingCallActivity extends AppCompatActivity {
      *       hint text on the red button stays accurate if Android
      *       adds back-gesture handling later)
      *   KEYCODE_MENU                                 → Decline
+     *   KEYCODE_POWER (red button on P50; physically the same key as
+     *       power)                                   → Decline
+     *       The OS-level PhoneWindowManager still turns the screen off
+     *       in parallel — we can't suppress that from dispatchKeyEvent
+     *       — but the reject fires first. Accepted UX tradeoff: mirrors
+     *       the "hang up handset → phone at rest" metaphor.
      *
      * We consume the event (return true) so KEYCODE_CALL doesn't
      * bubble up to the system dialer while the overlay is foreground.
@@ -149,6 +155,15 @@ public class IncomingCallActivity extends AppCompatActivity {
             case KeyEvent.KEYCODE_BACK:
                 if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
                     Log.i(TAG, "hardware BACK → Decline");
+                    finish();
+                }
+                return true;
+            case KeyEvent.KEYCODE_POWER:
+                // Red button on P50 (same physical key as power). Only
+                // scoped to this activity — when the ring isn't active,
+                // power behaves normally for screen-off.
+                if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                    Log.i(TAG, "hardware POWER → Decline");
                     finish();
                 }
                 return true;

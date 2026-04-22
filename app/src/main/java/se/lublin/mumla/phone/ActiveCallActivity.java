@@ -163,6 +163,19 @@ public class ActiveCallActivity extends AppCompatActivity {
                     triggerHangup();
                 }
                 return true;
+            case KeyEvent.KEYCODE_POWER:
+                // Red button on P50 (same physical key as power). Only
+                // scoped to this activity — when no call is active,
+                // power behaves normally for screen-off. The OS-level
+                // PhoneWindowManager still turns the screen off in
+                // parallel; we can't suppress that from dispatchKeyEvent
+                // — but the hangup fires first. Accepted UX tradeoff:
+                // mirrors the "hang up handset → phone at rest" metaphor.
+                if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                    Log.i(TAG, "hardware POWER → Hangup");
+                    triggerHangup();
+                }
+                return true;
             case KeyEvent.KEYCODE_CALL:
                 if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
                     Log.i(TAG, "hardware CALL → Hold-toggle");
