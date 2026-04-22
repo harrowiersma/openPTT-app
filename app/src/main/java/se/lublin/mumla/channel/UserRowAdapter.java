@@ -111,6 +111,13 @@ public class UserRowAdapter extends RecyclerView.Adapter<UserRowAdapter.VH> {
             h.state.setImageResource(R.drawable.outline_circle_talking_on);
             status = "PTT";
             statusColor = 0xFF00C853;
+        } else if (mPresenceCache != null
+                   && "busy".equals(mPresenceCache.getStatus(u.getName()))) {
+            // Stored presence intent. Self-state and talk-state above
+            // still take priority — they're more dynamic.
+            h.state.setImageResource(R.drawable.outline_circle_talking_off);
+            status = "BUSY";
+            statusColor = 0xFFFFBF00;
         } else {
             h.state.setImageResource(R.drawable.outline_circle_talking_off);
             status = "ONLINE";
