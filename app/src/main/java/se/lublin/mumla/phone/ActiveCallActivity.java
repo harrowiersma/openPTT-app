@@ -132,6 +132,24 @@ public class ActiveCallActivity extends AppCompatActivity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
+        // While held, let the knob/arrow keys rotate through channels.
+        // The observer detects the session leaving Call-* and finish()es
+        // this activity, handing the carousel back to MumlaActivity so
+        // the operator can confer elsewhere without the call screen
+        // locked on top.
+        if (event.getAction() == KeyEvent.ACTION_DOWN
+                && mService != null && mService.isHoldingCall()) {
+            if (keyCode == KeyEvent.KEYCODE_F5
+                    || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                mService.switchChannel(-1);
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_F6
+                    || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                mService.switchChannel(1);
+                return true;
+            }
+        }
         switch (keyCode) {
             case KeyEvent.KEYCODE_MENU:
                 if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
