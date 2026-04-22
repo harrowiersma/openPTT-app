@@ -100,6 +100,15 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
     };
 
     private final IHumlaObserver mObserver = new HumlaObserver() {
+        @Override public void onConnected() {
+            // Humla's sync sequence is: ChannelState → UserState →
+            // ServerSync. onChannelAdded fires during ChannelState, but
+            // this fragment may be attached AFTER those messages land
+            // (auto-connect races the fragment lifecycle on a cold
+            // start). Rebuild once here so the carousel is populated
+            // whichever way the race resolves.
+            rebuild();
+        }
         @Override public void onUserJoinedChannel(IUser user, IChannel newChannel, IChannel oldChannel) {
             if (getService() == null || !getService().isConnected()) return;
             try {
