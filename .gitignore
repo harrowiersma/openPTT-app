@@ -8,6 +8,10 @@ signing-beta.gradle
 keystore.properties
 *.jks
 *.keystore
+# Project-local debug keystore — committed deliberately so every machine
+# produces APKs with the same signature as the ones already on the P50s.
+# See docs/plans/2026-04-22-deterministic-debug-signing-design.md.
+!app/debug.keystore
 
 # Eclipse
 bin/

@@ -44,6 +44,15 @@ allprojects {
 }
 
 android {
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
     namespace = 'se.lublin.mumla'
     compileSdk = 36
 
