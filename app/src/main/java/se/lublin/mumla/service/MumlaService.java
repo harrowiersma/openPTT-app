@@ -207,8 +207,12 @@ public class MumlaService extends HumlaService implements
                 // here — Android 10+ blocks service-initiated
                 // background-activity starts so this observer cannot
                 // reliably raise a full-screen UI. We still clear the
-                // stashed caller-id when leaving Call-*.
-                if (channelName != null && !channelName.startsWith("Call-")) {
+                // stashed caller-id when leaving Call-* — but NOT while
+                // a call is held: the operator may nav away during hold
+                // and we need to relaunch ActiveCallActivity with the
+                // original caller id when they press green to resume.
+                if (channelName != null && !channelName.startsWith("Call-")
+                        && !isHoldingCall()) {
                     mActiveCallerId = null;
                 }
 
@@ -587,10 +591,31 @@ public class MumlaService extends HumlaService implements
                 mHoldStateClient.refresh();
             }
             if (ok && wasHolding && heldSlot > 0) {
-                // Auto-navigate the radio back to the slot that just resumed.
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
-                    moveSessionToNamedChannel("Phone", "Call-" + heldSlot)
-                );
+                // Auto-navigate the radio back to the slot that just
+                // resumed AND re-raise the call screen with the
+                // original caller id so the operator sees the in-call
+                // UI instead of the carousel.
+                final String callerId = mActiveCallerId != null ? mActiveCallerId : "Unknown";
+                final String subChannel = "Call-" + heldSlot;
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    moveSessionToNamedChannel("Phone", "Call-" + heldSlot);
+                    Intent call = new Intent(MumlaService.this,
+                            se.lublin.mumla.phone.ActiveCallActivity.class);
+                    call.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                            | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                            | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                    call.putExtra(
+                            se.lublin.mumla.phone.ActiveCallActivity.EXTRA_CALLER_ID,
+                            callerId);
+                    call.putExtra(
+                            se.lublin.mumla.phone.ActiveCallActivity.EXTRA_SUB_CHANNEL,
+                            subChannel);
+                    try {
+                        startActivity(call);
+                    } catch (Exception e) {
+                        Log.w(TAG, "relaunch ActiveCallActivity failed: " + e);
+                    }
+                });
             }
         }).start();
     }
