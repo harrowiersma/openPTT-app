@@ -181,15 +181,9 @@ public class ActiveCallActivity extends AppCompatActivity {
     }
 
     private void triggerHangup() {
-        if (mService != null) {
-            // Fire the hangup RPC (SIP bridge tears down the call) and
-            // restore the operator to their pre-call channel so they
-            // aren't left sitting in the empty Call-N. Both are
-            // fire-and-forget — they'll race but that's fine; Murmur
-            // handles either ordering.
-            mService.phoneHangup();
-            mService.restorePreCallChannel();
-        }
+        // phoneHangup fires the bridge SIGUSR1 AND restores the pre-call
+        // channel itself, so callers don't need to do both.
+        if (mService != null) mService.phoneHangup();
         finish();
     }
 

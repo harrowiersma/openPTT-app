@@ -253,11 +253,13 @@ public class MumlaService extends HumlaService implements
         @Override
         public void onUserRemoved(IUser user, String reason) {
             // Caller-side hangup path: the sip-bridge stops the
-            // PTTPhone-<slot> bot, which fires UserRemove. If we're
-            // sitting in that bot's Call-* channel, the call just
-            // ended from the remote side — restore the operator's
-            // pre-call channel so they're not stranded in an empty
-            // Call-N (and drag them out of a stale "held" slot too).
+            // PTTPhone-<slot> bot, which fires UserRemove. By the time
+            // this callback runs the bot's channel ref may already be
+            // cleared, so don't require it to match — if any PTTPhone-*
+            // just left Mumble AND this device's session sits in a
+            // Call-* sub-channel, the call just ended from the remote
+            // side. Restore the operator's pre-call channel so they
+            // aren't stranded in an empty Call-N.
             try {
                 if (user == null) return;
                 String name = user.getName();
@@ -266,10 +268,11 @@ public class MumlaService extends HumlaService implements
                 IUser self = getSessionUser();
                 if (self == null) return;
                 IChannel selfChan = self.getChannel();
-                IChannel botChan = user.getChannel();
-                if (selfChan == null || botChan == null) return;
-                if (selfChan.getId() != botChan.getId()) return;
-                Log.i(TAG, "PTTPhone-* removed from my channel — restoring pre-call");
+                if (selfChan == null) return;
+                String selfChanName = selfChan.getName();
+                if (selfChanName == null || !selfChanName.startsWith("Call-")) return;
+                Log.i(TAG, "PTTPhone-* removed while self in " + selfChanName
+                        + " — restoring pre-call channel");
                 restorePreCallChannel();
             } catch (Exception e) {
                 Log.d(TAG, "onUserRemoved: " + e);
@@ -593,7 +596,10 @@ public class MumlaService extends HumlaService implements
     }
 
     /** MENU key handler: hang up the active phone call.
-     *  Server signals sip-bridge with SIGUSR1. */
+     *  Server signals sip-bridge with SIGUSR1; also restores the
+     *  operator to their pre-call channel so they aren't left sitting
+     *  in an empty Call-N (also works when the remote end already
+     *  hung up and the bridge SIGUSR1 is a no-op). */
     public void phoneHangup() {
         String adminUrl = mSettings.getAdminUrl();
         if (adminUrl == null || adminUrl.isEmpty()) {
@@ -604,6 +610,11 @@ public class MumlaService extends HumlaService implements
         if (username == null) return;
         speak(getString(R.string.phone_hung_up_tts));
         new Thread(() -> _postPhoneControl(adminUrl + "/api/sip/hangup-current", username)).start();
+        // Move the operator out of Call-* unconditionally — the bridge
+        // SIGUSR1 is best-effort (may no-op if the call already ended),
+        // but the radio must never be stranded in an empty Call-N.
+        new android.os.Handler(android.os.Looper.getMainLooper())
+                .post(this::restorePreCallChannel);
     }
 
     /** POST /api/sip/answered so the admin call log records which
