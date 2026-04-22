@@ -3,6 +3,7 @@ package se.lublin.mumla.service;
 import java.util.List;
 
 import se.lublin.humla.IHumlaService;
+import se.lublin.mumla.channel.PresenceCache;
 
 /**
  * Created by andrew on 28/02/17.
@@ -73,4 +74,8 @@ public interface IMumlaService extends IHumlaService {
 
     /** Public TTS passthrough so UI callers can confirm status changes. */
     void speakNow(String text);
+
+    /** Channel-list presence filter cache, refreshed every 20 s while
+     *  Mumble is connected. May be null before onCreate completes. */
+    PresenceCache getPresenceCache();
 }

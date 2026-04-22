@@ -45,6 +45,9 @@ import org.jsoup.nodes.Element;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import se.lublin.humla.Constants;
 import se.lublin.humla.HumlaService;
@@ -59,6 +62,7 @@ import se.lublin.humla.util.HumlaObserver;
 import se.lublin.mumla.R;
 import se.lublin.mumla.Settings;
 import se.lublin.mumla.admin.CapabilitiesClient;
+import se.lublin.mumla.channel.PresenceCache;
 import se.lublin.mumla.phone.ActiveCallActivity;
 import se.lublin.mumla.phone.IncomingCallActivity;
 import se.lublin.mumla.phone.IncomingCallParser;
@@ -110,6 +114,10 @@ public class MumlaService extends HumlaService implements
     private TextToSpeech mTTS;
     /** True once the TTS engine has finished binding and speak() is usable. */
     private boolean mTTSReady;
+
+    private PresenceCache mPresenceCache;
+    private ScheduledExecutorService mPresenceScheduler;
+    private static final int PRESENCE_POLL_SECONDS = 20;
     private TextToSpeech.OnInitListener mTTSInitListener = new TextToSpeech.OnInitListener() {
         @Override
         public void onInit(int status) {
@@ -174,6 +182,8 @@ public class MumlaService extends HumlaService implements
             // current audibility so the dashboard has a fresh value —
             // the ringer/stream volume may have changed between sessions.
             fetchStatus(() -> postStatus(null, computeAudible(), null, null));
+            // Prime the channel-list presence filter and start polling.
+            startPresencePolling();
         }
 
         @Override
@@ -221,6 +231,7 @@ public class MumlaService extends HumlaService implements
                                 e.getMessage() + (mSettings.isTorEnabled() ? " (Tor)" : ""),
                                 isReconnecting(), MumlaService.this);
             }
+            stopPresencePolling();
         }
 
         @Override
@@ -810,6 +821,7 @@ public class MumlaService extends HumlaService implements
                 if (code >= 200 && code < 300) {
                     if (label != null) mCurrentStatus = label;
                     if (isAudible != null) mCurrentAudible = isAudible;
+                    if (mPresenceCache != null) mPresenceCache.refresh();
                     if (onSuccess != null) onSuccess.run();
                 } else if (onError != null) {
                     onError.run();
@@ -868,6 +880,33 @@ public class MumlaService extends HumlaService implements
         }, "fetchStatus").start();
     }
 
+    private synchronized void startPresencePolling() {
+        if (mPresenceCache == null) return;
+        stopPresencePolling();
+        mPresenceCache.refresh();  // immediate first fetch
+        mPresenceScheduler = Executors.newSingleThreadScheduledExecutor(
+                r -> {
+                    Thread t = new Thread(r, "presence-poll");
+                    t.setDaemon(true);
+                    return t;
+                });
+        mPresenceScheduler.scheduleAtFixedRate(
+                mPresenceCache::refresh,
+                PRESENCE_POLL_SECONDS, PRESENCE_POLL_SECONDS,
+                TimeUnit.SECONDS);
+    }
+
+    private synchronized void stopPresencePolling() {
+        if (mPresenceScheduler != null) {
+            mPresenceScheduler.shutdownNow();
+            mPresenceScheduler = null;
+        }
+    }
+
+    public PresenceCache getPresenceCache() {
+        return mPresenceCache;
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -875,6 +914,7 @@ public class MumlaService extends HumlaService implements
 
         // Register for preference changes
         mSettings = Settings.getInstance(this);
+        mPresenceCache = new PresenceCache(mSettings.getAdminUrl());
         mPTTSoundEnabled = mSettings.isPttSoundEnabled();
         mShortTtsMessagesEnabled = mSettings.isShortTextToSpeechMessagesEnabled();
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -937,6 +977,16 @@ public class MumlaService extends HumlaService implements
 
     @Override
     public void onDestroy() {
+        // Tear presence polling + cache down BEFORE super.onDestroy() so
+        // the executors are shut down while service field references are
+        // still alive. Daemon threads die with the process, not the
+        // service, so a force-stop or system kill mid-session would
+        // otherwise leak the schedulers.
+        stopPresencePolling();
+        if (mPresenceCache != null) {
+            mPresenceCache.close();
+            mPresenceCache = null;
+        }
         if (mNotification != null) {
             mNotification.hide();
             mNotification = null;
