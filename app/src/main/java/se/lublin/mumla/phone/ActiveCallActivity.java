@@ -147,8 +147,8 @@ public class ActiveCallActivity extends AppCompatActivity {
                 return true;
             case KeyEvent.KEYCODE_CALL:
                 if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
-                    Log.i(TAG, "hardware CALL → Mute-toggle");
-                    if (mService != null) mService.phoneMuteToggle();
+                    Log.i(TAG, "hardware CALL → Hold-toggle");
+                    if (mService != null) mService.phoneHoldToggle();
                 }
                 return true;
         }

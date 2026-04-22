@@ -588,7 +588,7 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
                     || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
                     || keyCode == KeyEvent.KEYCODE_F6
                     || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
-            if (isDir && isInActivePhoneCall()) {
+            if (isDir && isInActivePhoneCall() && !mService.isHoldingCall()) {
                 android.widget.Toast.makeText(this,
                         R.string.phone_call_knob_blocked,
                         android.widget.Toast.LENGTH_SHORT).show();
@@ -603,21 +603,24 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
                 mService.switchChannel(1);
                 return true;
             }
-            // Phone-call controls. Fire while the user is either in the
-            // Phone parent channel (waiting lounge) or any Phone/Call-*
-            // sub-channel (active call). MENU hangs up the live call
-            // from either state; CALL toggles caller-mute.
+            // Phone-call controls. GREEN (CALL) fires from the Phone
+            // tree (start hold) AND from any non-Phone channel when a
+            // call is held (resume). MENU hangs up, only valid inside
+            // the Phone tree.
             if (keyCode == KeyEvent.KEYCODE_CALL || keyCode == KeyEvent.KEYCODE_MENU) {
                 String chan = mService.currentChannelName();
                 boolean inPhoneTree = chan != null
                         && ("Phone".equals(chan) || chan.startsWith("Call-"));
-                if (mService.hasFeature("sip") && inPhoneTree) {
+                if (mService.hasFeature("sip")) {
                     if (keyCode == KeyEvent.KEYCODE_CALL) {
-                        mService.phoneMuteToggle();
-                    } else {
+                        if (inPhoneTree || mService.isHoldingCall()) {
+                            mService.phoneHoldToggle();
+                            return true;
+                        }
+                    } else if (inPhoneTree) {
                         mService.phoneHangup();
+                        return true;
                     }
-                    return true;
                 }
             }
         }

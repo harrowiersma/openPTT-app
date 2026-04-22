@@ -534,20 +534,36 @@ public class MumlaService extends HumlaService implements
         return currentMumbleChannelName();
     }
 
-    /** Green-button (KEYCODE_CALL) handler: toggle caller-mute via admin.
-     *  Server signals sip-bridge with SIGUSR2; caller hears silence until
-     *  toggled again. TTS locally so the user knows the state changed.
-     */
-    public void phoneMuteToggle() {
+    /** Green-button toggle: HOLD if in Phone/Call-*, RESUME if elsewhere
+     *  AND a held call exists. Server's /hold-toggle handler interprets
+     *  the SIGUSR2 the same way regardless. After the POST succeeds we
+     *  refresh hold-state immediately and, on resume, auto-navigate the
+     *  Mumble client back to the held Phone/Call-N. */
+    public void phoneHoldToggle() {
         String adminUrl = mSettings.getAdminUrl();
         if (adminUrl == null || adminUrl.isEmpty()) {
-            Log.w(TAG, "phoneMuteToggle: admin URL not configured");
+            Log.w(TAG, "phoneHoldToggle: admin URL not configured");
             return;
         }
         String username = currentMumbleUsername();
         if (username == null) return;
-        speak(getString(R.string.phone_mute_toggled_tts));
-        new Thread(() -> _postPhoneControl(adminUrl + "/api/sip/mute-toggle", username)).start();
+        final boolean wasHolding = isHoldingCall();
+        final int heldSlot = getHoldingSlot();
+        speak(getString(wasHolding
+                ? R.string.phone_resumed_tts
+                : R.string.phone_held_tts));
+        new Thread(() -> {
+            boolean ok = _postPhoneControl(adminUrl + "/api/sip/hold-toggle", username);
+            if (ok && mHoldStateClient != null) {
+                mHoldStateClient.refresh();
+            }
+            if (ok && wasHolding && heldSlot > 0) {
+                // Auto-navigate the radio back to the slot that just resumed.
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
+                    moveSessionToNamedChannel("Phone", "Call-" + heldSlot)
+                );
+            }
+        }).start();
     }
 
     /** MENU key handler: hang up the active phone call.
@@ -594,7 +610,7 @@ public class MumlaService extends HumlaService implements
         }, "sip-answered").start();
     }
 
-    private void _postPhoneControl(String url, String username) {
+    private boolean _postPhoneControl(String url, String username) {
         java.net.HttpURLConnection conn = null;
         try {
             java.net.URL u = new java.net.URL(url);
@@ -610,8 +626,10 @@ public class MumlaService extends HumlaService implements
             }
             int code = conn.getResponseCode();
             Log.i(TAG, "phone control " + url + " → " + code);
+            return code >= 200 && code < 300;
         } catch (Exception e) {
             Log.w(TAG, "phone control post failed for " + url, e);
+            return false;
         } finally {
             if (conn != null) conn.disconnect();
         }

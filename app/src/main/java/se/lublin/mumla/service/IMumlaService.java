@@ -38,7 +38,7 @@ public interface IMumlaService extends IHumlaService {
 
     String currentChannelName();
 
-    void phoneMuteToggle();
+    void phoneHoldToggle();
 
     void phoneHangup();
 
