@@ -58,6 +58,7 @@ import se.lublin.humla.util.HumlaException;
 import se.lublin.humla.util.HumlaObserver;
 import se.lublin.humla.util.IHumlaObserver;
 import se.lublin.mumla.R;
+import se.lublin.mumla.service.IMumlaService;
 import se.lublin.mumla.util.HumlaServiceFragment;
 
 public class ChannelCarouselFragment extends HumlaServiceFragment {
@@ -359,7 +360,9 @@ public class ChannelCarouselFragment extends HumlaServiceFragment {
     private void updateCurrentUsers(@Nullable IChannel channel) {
         if (channel == null) return;
         List<? extends IUser> users = channel.getUsers();
-        int n = BotUsers.countHumans(users);
+        IMumlaService svc = getService();
+        PresenceCache cache = svc == null ? null : svc.getPresenceCache();
+        int n = PresenceFilter.countVisible(users, cache, safeOwnUsername());
         if (mUsersAdapter != null) mUsersAdapter.submit(users);
         if (mCurrentUsersBand != null) {
             String name = channel.getName() == null ? "" : channel.getName();

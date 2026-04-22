@@ -27,6 +27,7 @@ import se.lublin.humla.util.HumlaException;
 import se.lublin.humla.util.HumlaObserver;
 import se.lublin.humla.util.IHumlaObserver;
 import se.lublin.mumla.R;
+import se.lublin.mumla.service.IMumlaService;
 import se.lublin.mumla.util.HumlaServiceFragment;
 
 public class ChannelCardFragment extends HumlaServiceFragment {
@@ -101,7 +102,10 @@ public class ChannelCardFragment extends HumlaServiceFragment {
             }
             if (mName != null) mName.setText(channel.getName());
             if (mMembers != null) {
-                int n = BotUsers.countHumans(channel.getUsers());
+                IMumlaService svc = getService();
+                PresenceCache cache = svc == null ? null : svc.getPresenceCache();
+                String self = safeOwnUsername();
+                int n = PresenceFilter.countVisible(channel.getUsers(), cache, self);
                 mMembers.setText(getResources().getQuantityString(
                         R.plurals.channel_card_member_count, n, n));
             }
@@ -120,5 +124,16 @@ public class ChannelCardFragment extends HumlaServiceFragment {
             if (hit != null) return hit;
         }
         return null;
+    }
+
+    /** Returns the local user's Mumble username if the service is
+     *  bound and connected; null otherwise. */
+    private String safeOwnUsername() {
+        try {
+            IMumlaService svc = getService();
+            return svc == null ? null : svc.getOwnUsername();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
