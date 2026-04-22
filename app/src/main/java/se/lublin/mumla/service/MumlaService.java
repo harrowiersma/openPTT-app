@@ -251,6 +251,32 @@ public class MumlaService extends HumlaService implements
         }
 
         @Override
+        public void onUserRemoved(IUser user, String reason) {
+            // Caller-side hangup path: the sip-bridge stops the
+            // PTTPhone-<slot> bot, which fires UserRemove. If we're
+            // sitting in that bot's Call-* channel, the call just
+            // ended from the remote side — restore the operator's
+            // pre-call channel so they're not stranded in an empty
+            // Call-N (and drag them out of a stale "held" slot too).
+            try {
+                if (user == null) return;
+                String name = user.getName();
+                if (name == null || !name.startsWith("PTTPhone")) return;
+                if (!isConnectionEstablished()) return;
+                IUser self = getSessionUser();
+                if (self == null) return;
+                IChannel selfChan = self.getChannel();
+                IChannel botChan = user.getChannel();
+                if (selfChan == null || botChan == null) return;
+                if (selfChan.getId() != botChan.getId()) return;
+                Log.i(TAG, "PTTPhone-* removed from my channel — restoring pre-call");
+                restorePreCallChannel();
+            } catch (Exception e) {
+                Log.d(TAG, "onUserRemoved: " + e);
+            }
+        }
+
+        @Override
         public void onUserStateUpdated(IUser user) {
             if (user == null) {
                 return;
