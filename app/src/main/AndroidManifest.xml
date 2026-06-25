@@ -37,6 +37,9 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
+    <!-- Required from API 31 to open a GATT connection to a bonded BLE
+         device (e.g. Hytera POA121 ring) and subscribe to notifications. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BROADCAST_STICKY" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -56,6 +59,11 @@
         android:localeConfig="@xml/local_config"
         android:networkSecurityConfig="@xml/network_security_config">
         <!-- requestLegacyExternalStorage still true: we keep using old code if Android < 30 -->
+
+        <activity
+            android:name=".preference.BtPttProbeActivity"
+            android:label="@string/btPttProbeTitle"
+            android:exported="false" />
 
         <activity
             android:name=".preference.SettingsActivity"

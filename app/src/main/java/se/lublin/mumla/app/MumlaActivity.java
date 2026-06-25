@@ -561,9 +561,17 @@ public class MumlaActivity extends AppCompatActivity implements ListView.OnItemC
         if (keyCode == KeyEvent.KEYCODE_F2) {
             return true;  // swallow paired press, no action
         }
-        // PTT key (configured key or Hytera hardware PTT)
+        // PTT key (configured key, Hytera hardware PTT, or a paired
+        // Bluetooth PTT ring that was captured via Settings → Bluetooth PTT
+        // → Detect). The BT path is gated on user-enable so an unconfigured
+        // ring never steals a generic media key.
+        boolean btMatch = mSettings.isBtPttEnabled()
+                && mSettings.getBtPttKeycode() > 0
+                && keyCode == mSettings.getBtPttKeycode();
         if (mService != null &&
-                (keyCode == mSettings.getPushToTalkKey() || keyCode == KEYCODE_HYTERA_PTT)) {
+                (keyCode == mSettings.getPushToTalkKey()
+                        || keyCode == KEYCODE_HYTERA_PTT
+                        || btMatch)) {
             if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
                 mService.onTalkKeyDown();
                 return true;

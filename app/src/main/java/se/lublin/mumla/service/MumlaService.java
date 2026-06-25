@@ -24,6 +24,9 @@ import android.content.SharedPreferences;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.SoundPool;
+import android.media.session.MediaSession;
+import android.media.session.PlaybackState;
+import android.view.KeyEvent;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
@@ -190,6 +193,13 @@ public class MumlaService extends HumlaService implements
             // Prime the channel-list presence filter and start polling.
             startPresencePolling();
             startHoldStatePolling();
+            // Take ownership of BT media-button routing for the PTT ring
+            // only while we're actually in a session — outside of that,
+            // music/podcast apps keep their media keys.
+            if (mBtMediaSession != null) mBtMediaSession.setActive(true);
+            if (mBtPttGatt != null && mSettings.isBtPttEnabled()) {
+                mBtPttGatt.start();
+            }
         }
 
         @Override
@@ -243,6 +253,8 @@ public class MumlaService extends HumlaService implements
             }
             stopPresencePolling();
             stopHoldStatePolling();
+            if (mBtMediaSession != null) mBtMediaSession.setActive(false);
+            if (mBtPttGatt != null) mBtPttGatt.stop();
         }
 
         @Override
@@ -455,6 +467,20 @@ public class MumlaService extends HumlaService implements
     private volatile Boolean mCurrentAudible = null;
 
     private ShiftController mShiftController;
+
+    /** Bluetooth PTT ring (e.g. Hytera POA121) routing. While active,
+     *  Android delivers BT media-button KeyEvents here even when the app
+     *  is in the background. We map the captured keycode → PTT, ignore
+     *  everything else so other media buttons fall through to whichever
+     *  music app is running. */
+    private MediaSession mBtMediaSession;
+
+    /** BLE GATT client for the Hytera POA121 ring. The POA121 doesn't
+     *  expose its PTT button via HID, so MediaSession never sees it —
+     *  this handler opens a separate GATT connection and decodes the
+     *  vendor frames. Active only while the Mumble session is connected
+     *  and BT PTT is enabled in Settings. */
+    private BtPttGattHandler mBtPttGatt;
 
     /** Feature-flag cache mirrored from /api/status/capabilities. */
     private CapabilitiesClient mCapabilities;
@@ -1120,6 +1146,55 @@ public class MumlaService extends HumlaService implements
             mTTS = new TextToSpeech(this, mTTSInitListener);
 
         mTalkReceiver = new TalkBroadcastReceiver(this);
+
+        // Bluetooth PTT (e.g. POA121) media-button session. Created up-front
+        // but only setActive() while connected — see onConnected/onDisconnected.
+        initBtMediaSession();
+
+        // POA121 BLE GATT handler — same on/off lifecycle as the media session.
+        mBtPttGatt = new BtPttGattHandler(this, new BtPttGattHandler.Listener() {
+            @Override public void onBtPttDown() { onTalkKeyDown(); }
+            @Override public void onBtPttUp()   { onTalkKeyUp();   }
+        });
+    }
+
+    private void initBtMediaSession() {
+        mBtMediaSession = new MediaSession(this, "openPTT-bt");
+        mBtMediaSession.setCallback(new MediaSession.Callback() {
+            @Override
+            public boolean onMediaButtonEvent(Intent intent) {
+                KeyEvent ev = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+                if (ev == null) return false;
+                if (!mSettings.isBtPttEnabled()) return false;
+                int target = mSettings.getBtPttKeycode();
+                if (target <= 0) return false;
+                if (ev.getKeyCode() != target) return false;
+                if (ev.getAction() == KeyEvent.ACTION_DOWN) {
+                    if (ev.getRepeatCount() == 0) {
+                        Log.i(TAG, "BT PTT DOWN keycode=" + target);
+                        onTalkKeyDown();
+                    }
+                    return true;
+                } else if (ev.getAction() == KeyEvent.ACTION_UP) {
+                    Log.i(TAG, "BT PTT UP keycode=" + target);
+                    onTalkKeyUp();
+                    return true;
+                }
+                return false;
+            }
+        });
+        // Declare PLAYING so the system routes BT media buttons here first
+        // when our session is active. Without PLAYING the OS gives priority
+        // to whichever app is actually emitting audio (e.g. a music app).
+        PlaybackState state = new PlaybackState.Builder()
+                .setActions(PlaybackState.ACTION_PLAY
+                        | PlaybackState.ACTION_PAUSE
+                        | PlaybackState.ACTION_PLAY_PAUSE
+                        | PlaybackState.ACTION_STOP)
+                .setState(PlaybackState.STATE_PLAYING,
+                        PlaybackState.PLAYBACK_POSITION_UNKNOWN, 1f)
+                .build();
+        mBtMediaSession.setPlaybackState(state);
     }
 
     @Override
@@ -1165,6 +1240,12 @@ public class MumlaService extends HumlaService implements
         if(mSoundPool != null) mSoundPool.release();
         if(mLocationReporter != null) mLocationReporter.stop();
         if(mShiftController != null) { mShiftController.shutdown(); mShiftController = null; }
+        if(mBtMediaSession != null) {
+            mBtMediaSession.setActive(false);
+            mBtMediaSession.release();
+            mBtMediaSession = null;
+        }
+        if(mBtPttGatt != null) { mBtPttGatt.stop(); mBtPttGatt = null; }
         if(mCapabilitiesHandler != null) {
             mCapabilitiesHandler.removeCallbacks(mCapabilitiesTick);
             mCapabilitiesHandler = null;

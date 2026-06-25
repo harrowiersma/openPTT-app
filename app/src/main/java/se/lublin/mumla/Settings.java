@@ -193,6 +193,16 @@ public class Settings {
 
     public static final String PREF_NEWS_SHOWN_VERSIONS = "newsShownVersions";
 
+    // Bluetooth PTT (e.g. Hytera POA121 ring). Disabled by default; the user
+    // must run the Detect flow to capture the ring's PTT keycode before it
+    // does anything — otherwise BT media buttons from other devices (e.g.
+    // car-stereo play/pause) could accidentally trigger transmit.
+    public static final String PREF_BT_PTT_ENABLED = "bt_ptt_enabled";
+    public static final boolean DEFAULT_BT_PTT_ENABLED = false;
+    /** -1 means "not yet detected". Otherwise an Android KeyEvent keycode. */
+    public static final String PREF_BT_PTT_KEYCODE = "bt_ptt_keycode";
+    public static final int DEFAULT_BT_PTT_KEYCODE = -1;
+
     static {
         ARRAY_INPUT_METHODS = new HashSet<String>();
         ARRAY_INPUT_METHODS.add(ARRAY_INPUT_METHOD_VOICE);
@@ -471,6 +481,18 @@ public class Settings {
 
     public boolean shouldStartUpInPinnedMode() {
         return preferences.getBoolean(PREF_START_UP_IN_PINNED_MODE, DEFAULT_START_UP_IN_PINNED_MODE);
+    }
+
+    public boolean isBtPttEnabled() {
+        return preferences.getBoolean(PREF_BT_PTT_ENABLED, DEFAULT_BT_PTT_ENABLED);
+    }
+
+    public int getBtPttKeycode() {
+        return preferences.getInt(PREF_BT_PTT_KEYCODE, DEFAULT_BT_PTT_KEYCODE);
+    }
+
+    public void setBtPttKeycode(int keycode) {
+        preferences.edit().putInt(PREF_BT_PTT_KEYCODE, keycode).apply();
     }
 
     public Set<String> getNewsShownVersions() {

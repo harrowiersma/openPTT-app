@@ -135,4 +135,22 @@
             android:defaultValue="false"
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="@string/btPttCategory"
+        app:iconSpaceReserved="false">
+
+        <SwitchPreferenceCompat
+            android:key="bt_ptt_enabled"
+            android:title="@string/btPttEnabled"
+            android:summary="@string/btPttEnabledSum"
+            android:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="bt_ptt_probe"
+            android:title="@string/btPttProbe"
+            android:summary="@string/btPttProbeSum"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
 </PreferenceScreen>

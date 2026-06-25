@@ -277,6 +277,18 @@
     <string name="adminUrlSum">HTTPS base URL of the openPTT admin, e.g. https://ptt.harro.ch. Leave blank to disable long-press shift control.</string>
     <string name="loneWorkerEnabled">Lone-worker mode</string>
     <string name="loneWorkerEnabledSum">When enabled, triple-tap PTT starts/ends a shift (except in the Phone channel). Disable this for dispatchers and phone operators who don\'t run shifts.</string>
+    <string name="btPttCategory">Bluetooth PTT</string>
+    <string name="btPttEnabled">Hytera POA121 (Bluetooth PTT)</string>
+    <string name="btPttEnabledSum">Use a paired POA121 ring as a press-and-hold PTT key while connected to a voice server.</string>
+    <string name="btPttEnabledSumUnpaired">Not paired. Pair the ring in Android Settings → Bluetooth, then return here.</string>
+    <string name="btPttEnabledSumPaired">Paired: %1$s. Active while connected to a voice server.</string>
+    <string name="btPttProbe">Probe POA121 (developer)</string>
+    <string name="btPttProbeSum">Connect to the ring over GATT and log every notification — used to identify the PTT characteristic.</string>
+    <string name="btPttProbeStart">Start</string>
+    <string name="btPttProbeStop">Stop</string>
+    <string name="btPttProbeSave">Save</string>
+    <string name="btPttProbeClear">Clear</string>
+    <string name="btPttProbeTitle">POA121 GATT probe</string>
     <!-- Spoken when call enters HOLD. Replaces phone_mute_toggled_tts. -->
     <string name="phone_held_tts">On hold.</string>
     <!-- Spoken when the operator presses green from a non-Phone channel
