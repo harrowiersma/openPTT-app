@@ -20,6 +20,8 @@ import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.WindowManager;
@@ -41,6 +43,19 @@ public class IncomingCallActivity extends AppCompatActivity {
     private String mCallerId;
     private String mSubChannel;
     @Nullable private Ringtone mRingtone;
+
+    /** Maximum ring time before we auto-dismiss. Matches standard phone
+     *  behaviour (missed call) and prevents a stale INCOMING_CALL whisper
+     *  — e.g. one delivered late after a server outage recovery — from
+     *  leaving an unstoppable ringtone playing until the operator finds
+     *  the radio. Hardware buttons still dismiss earlier. */
+    private static final long RING_TIMEOUT_MS = 45_000L;
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+    private final Runnable mRingTimeout = () -> {
+        Log.i(TAG, "ring timeout — dismissing (no answer in "
+                + (RING_TIMEOUT_MS / 1000) + "s)");
+        if (!isFinishing()) finish();
+    };
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -118,6 +133,10 @@ public class IncomingCallActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.w(TAG, "ringtone start failed: " + e);
         }
+        // Arm the auto-dismiss watchdog even if the ringtone itself
+        // failed to play — the visible overlay alone is still a
+        // distraction that needs to time out.
+        mMainHandler.postDelayed(mRingTimeout, RING_TIMEOUT_MS);
     }
 
     /**
@@ -186,6 +205,7 @@ public class IncomingCallActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        mMainHandler.removeCallbacks(mRingTimeout);
         try {
             if (mRingtone != null && mRingtone.isPlaying()) mRingtone.stop();
         } catch (Exception ignored) { }

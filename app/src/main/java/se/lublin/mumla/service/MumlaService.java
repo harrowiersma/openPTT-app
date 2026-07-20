@@ -174,6 +174,7 @@ public class MumlaService extends HumlaService implements
 
         @Override
         public void onConnected() {
+            mMumbleConnectedAtMs = System.currentTimeMillis();
             if (mNotification != null) {
                 final String tor = mSettings.isTorEnabled() ? " (Tor)" : "";
                 mNotification.setCustomContentText(getString(R.string.connected) + tor);
@@ -340,6 +341,20 @@ public class MumlaService extends HumlaService implements
             String rawMessage = message.getMessage() == null ? "" : message.getMessage();
             if (IncomingCallParser.looksLike(Jsoup.parseBodyFragment(rawMessage).text())
                     && hasFeature("sip")) {
+                // Drop whispers that arrive in the reconnect-flush burst.
+                // The admin's SIP call was almost certainly torn down
+                // server-side long before this queued whisper reached us,
+                // and raising the overlay for a phantom call is worse
+                // than missing a real one — the real call would be
+                // re-INVITEd anyway.
+                long sinceConnect = System.currentTimeMillis() - mMumbleConnectedAtMs;
+                if (mMumbleConnectedAtMs > 0
+                        && sinceConnect < INCOMING_CALL_RECONNECT_GRACE_MS) {
+                    Log.w(TAG, "dropping INCOMING_CALL whisper: arrived "
+                            + sinceConnect + "ms after reconnect (within "
+                            + INCOMING_CALL_RECONNECT_GRACE_MS + "ms grace)");
+                    return;
+                }
                 IncomingCallParser.Result call =
                         IncomingCallParser.parse(Jsoup.parseBodyFragment(rawMessage).text());
                 if (call != null) {
@@ -481,6 +496,17 @@ public class MumlaService extends HumlaService implements
      *  vendor frames. Active only while the Mumble session is connected
      *  and BT PTT is enabled in Settings. */
     private BtPttGattHandler mBtPttGatt;
+
+    /** Wall-clock ms of the last successful Mumble onConnected(). Used
+     *  by the INCOMING_CALL whisper handler to drop stale whispers that
+     *  land in a burst right after a reconnect — those are almost
+     *  always queued from before the disconnect and refer to phone
+     *  calls that already timed out server-side. 0 = never connected. */
+    private volatile long mMumbleConnectedAtMs = 0L;
+    /** Suppression window after (re)connect. 5 s is long enough for any
+     *  post-reconnect backlog to flush and short enough that a real
+     *  call arriving right after a reconnect isn't silently dropped. */
+    private static final long INCOMING_CALL_RECONNECT_GRACE_MS = 5_000L;
 
     /** Feature-flag cache mirrored from /api/status/capabilities. */
     private CapabilitiesClient mCapabilities;
