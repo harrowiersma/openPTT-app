@@ -1583,17 +1583,44 @@ public class MumlaService extends HumlaService implements
     private final long[] mPttPressTimes = new long[3];
     private int mPttPressIdx = 0;
 
+    /** Maximum single-press TX time. Covers EVERY keying path (Meig
+     *  broadcast, BT ring, hardware keys, toggle mode) — mirrors the
+     *  60s watchdog inside BtPttGattHandler that was previously only
+     *  protecting the BLE ring. Without this, a dropped ACTION_UP
+     *  broadcast from the P50 ROM would leave the mic keyed and jam the
+     *  channel until the operator physically finds the radio. */
+    private static final long TX_WATCHDOG_MS = 60_000L;
+    private final android.os.Handler mTxWatchdogHandler =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable mTxWatchdogRunnable = () -> {
+        if (isTalking()) {
+            Log.w(TAG, "TX watchdog fired (" + (TX_WATCHDOG_MS / 1000)
+                    + "s) — forcing setTalkingState(false)");
+            setTalkingState(false);
+        }
+    };
+
     @Override
     public void onTalkKeyDown() {
         if(isConnectionEstablished()
                 && Settings.ARRAY_INPUT_METHOD_PTT.equals(mSettings.getInputMethod())) {
             if (!mSettings.isPushToTalkToggle() && !isTalking()) {
                 setTalkingState(true); // Start talking
+                armTxWatchdog();
             }
         }
         // Record press time and check for triple-tap regardless of input
         // method — the user has signalled a shift-toggle intent.
         detectTripleTap();
+    }
+
+    private void armTxWatchdog() {
+        mTxWatchdogHandler.removeCallbacks(mTxWatchdogRunnable);
+        mTxWatchdogHandler.postDelayed(mTxWatchdogRunnable, TX_WATCHDOG_MS);
+    }
+
+    private void cancelTxWatchdog() {
+        mTxWatchdogHandler.removeCallbacks(mTxWatchdogRunnable);
     }
 
     private void detectTripleTap() {
@@ -1647,9 +1674,13 @@ public class MumlaService extends HumlaService implements
         if(isConnectionEstablished()
                 && Settings.ARRAY_INPUT_METHOD_PTT.equals(mSettings.getInputMethod())) {
             if (mSettings.isPushToTalkToggle()) {
-                setTalkingState(!isTalking()); // Toggle talk state
+                boolean newState = !isTalking();
+                setTalkingState(newState); // Toggle talk state
+                if (newState) armTxWatchdog();
+                else cancelTxWatchdog();
             } else if (isTalking()) {
                 setTalkingState(false); // Stop talking
+                cancelTxWatchdog();
             }
         }
     }

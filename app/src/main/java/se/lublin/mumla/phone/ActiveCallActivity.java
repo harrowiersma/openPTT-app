@@ -48,6 +48,18 @@ public class ActiveCallActivity extends AppCompatActivity {
     private TextView mDurationView;
     private Handler mTickHandler;
 
+    /** Absolute-cap for the call screen. If the SIP bridge crashes after
+     *  the bot registered on Murmur but before it detaches, the
+     *  onUserJoinedChannel observer never fires and this activity would
+     *  otherwise stay up forever with FLAG_KEEP_SCREEN_ON draining the
+     *  battery. 60 min matches typical carrier call-limit conventions.
+     *  Independent of ring behaviour in IncomingCallActivity. */
+    private static final long MAX_CALL_DURATION_MS = 60L * 60L * 1000L;
+    private final Runnable mMaxDurationTimeout = () -> {
+        Log.i(TAG, "max call duration reached — finishing");
+        if (!isFinishing()) triggerHangup();
+    };
+
     /**
      * Bound service that lets us observe Humla events and call hangup.
      * We piggyback on the existing HumlaServiceFragment binder pattern
@@ -110,6 +122,7 @@ public class ActiveCallActivity extends AppCompatActivity {
         mCallStartMs = SystemClock.elapsedRealtime();
         mTickHandler = new Handler(Looper.getMainLooper());
         mTickHandler.post(mTick);
+        mTickHandler.postDelayed(mMaxDurationTimeout, MAX_CALL_DURATION_MS);
 
         bindToService();
     }
@@ -118,6 +131,7 @@ public class ActiveCallActivity extends AppCompatActivity {
     protected void onDestroy() {
         if (mTickHandler != null) {
             mTickHandler.removeCallbacks(mTick);
+            mTickHandler.removeCallbacks(mMaxDurationTimeout);
             mTickHandler = null;
         }
         unbindFromService();

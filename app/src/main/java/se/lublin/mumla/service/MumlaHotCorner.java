@@ -83,6 +83,10 @@ public class MumlaHotCorner implements View.OnTouchListener {
                 mListener.onHotCornerDown();
                 return true;
             case MotionEvent.ACTION_UP:
+            // ACTION_CANCEL fires when the window loses focus mid-press
+            // (an incoming-call overlay stealing focus, a system dialog,
+            // etc.). Same handling as UP so TX cannot get stuck.
+            case MotionEvent.ACTION_CANCEL:
                 mView.setBackgroundColor(0);
                 mListener.onHotCornerUp();
                 return true;

@@ -67,25 +67,45 @@ public class IncomingCallActivity extends AppCompatActivity {
                 | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
         setContentView(R.layout.activity_incoming_call);
 
-        Intent intent = getIntent();
-        mCallerId = intent != null ? intent.getStringExtra(EXTRA_CALLER_ID) : null;
-        mSubChannel = intent != null ? intent.getStringExtra(EXTRA_SUB_CHANNEL) : null;
-        if (mCallerId == null) mCallerId = "Unknown";
-        if (mSubChannel == null) mSubChannel = "";
-
-        TextView caller = findViewById(R.id.incomingCallCallerId);
-        caller.setText(mCallerId);
-
-        TextView channel = findViewById(R.id.incomingCallChannel);
-        channel.setText(mSubChannel);
-
         MaterialButton answer = findViewById(R.id.incomingCallAnswer);
         answer.setOnClickListener(v -> onAnswer());
 
         MaterialButton decline = findViewById(R.id.incomingCallDecline);
         decline.setOnClickListener(v -> finish());
 
+        applyCallIntent(getIntent());
         startRinging();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        // singleTask launch mode means a second INCOMING_CALL whisper
+        // arriving while this activity is on-screen re-uses the same
+        // task; without this override, the new caller-id/sub-channel
+        // extras would be dropped and the operator could answer into
+        // the wrong SIP leg. Refresh the visible extras and re-arm the
+        // ring watchdog so the fresher call gets its full 45 s.
+        super.onNewIntent(intent);
+        setIntent(intent);
+        applyCallIntent(intent);
+        // startRinging removes+re-posts the watchdog and re-plays the
+        // ringtone, so a second call gets a fresh 45 s + a new audible
+        // cue rather than sharing the previous call's timer.
+        try {
+            if (mRingtone != null && mRingtone.isPlaying()) mRingtone.stop();
+        } catch (Exception ignored) { }
+        startRinging();
+    }
+
+    private void applyCallIntent(@Nullable Intent intent) {
+        mCallerId = intent != null ? intent.getStringExtra(EXTRA_CALLER_ID) : null;
+        mSubChannel = intent != null ? intent.getStringExtra(EXTRA_SUB_CHANNEL) : null;
+        if (mCallerId == null) mCallerId = "Unknown";
+        if (mSubChannel == null) mSubChannel = "";
+        TextView caller = findViewById(R.id.incomingCallCallerId);
+        if (caller != null) caller.setText(mCallerId);
+        TextView channel = findViewById(R.id.incomingCallChannel);
+        if (channel != null) channel.setText(mSubChannel);
     }
 
     private void onAnswer() {
@@ -135,7 +155,11 @@ public class IncomingCallActivity extends AppCompatActivity {
         }
         // Arm the auto-dismiss watchdog even if the ringtone itself
         // failed to play — the visible overlay alone is still a
-        // distraction that needs to time out.
+        // distraction that needs to time out. Idempotent: onNewIntent
+        // calls startRinging again for a second incoming call, and the
+        // remove-first ensures we don't stack two watchdogs on one
+        // activity instance.
+        mMainHandler.removeCallbacks(mRingTimeout);
         mMainHandler.postDelayed(mRingTimeout, RING_TIMEOUT_MS);
     }
 

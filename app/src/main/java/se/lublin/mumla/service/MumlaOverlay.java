@@ -170,12 +170,20 @@ public class MumlaOverlay {
         mTalkButton.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                if(MotionEvent.ACTION_DOWN == event.getAction()) {
-                    mService.setTalkingState(true);
-                    return true;
-                } else if(MotionEvent.ACTION_UP == event.getAction()) {
-                    mService.setTalkingState(false);
-                    return true;
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        mService.setTalkingState(true);
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                    // ACTION_CANCEL fires when this window loses focus
+                    // mid-press (IncomingCallActivity/ActiveCallActivity
+                    // raised with FLAG_ACTIVITY_NEW_TASK, or any system
+                    // dialog stealing focus). Without treating it like
+                    // UP, TX stays keyed until the next tap — a stuck
+                    // transmitter until the operator finds the radio.
+                    case MotionEvent.ACTION_CANCEL:
+                        mService.setTalkingState(false);
+                        return true;
                 }
                 return false;
             }
